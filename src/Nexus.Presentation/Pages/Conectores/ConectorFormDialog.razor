@@ -1,0 +1,123 @@
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Cable" Class="mr-2 mb-n1" />
+            @(EsEdicion ? "Editar conector" : "Nuevo conector")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="_model" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string" Label="Nombre" @bind-Value="_model.Nombre" For="@(() => _model.Nombre)"
+                          Variant="Variant.Outlined" Class="mb-3" HelperText='Ej: "Conector SAP ECC"' Required="true" />
+
+            <MudSelect T="string" Label="Tipo de protocolo" @bind-Value="_model.TipoProtocolo" For="@(() => _model.TipoProtocolo)"
+                       Variant="Variant.Outlined" Class="mb-3" Required="true">
+                <MudSelectItem Value="@("REST")">REST</MudSelectItem>
+                <MudSelectItem Value="@("SOAP")">SOAP</MudSelectItem>
+                <MudSelectItem Value="@("RFC")">RFC</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField T="string" Label="URL base" @bind-Value="_model.UrlBase" For="@(() => _model.UrlBase)"
+                          Variant="Variant.Outlined" Class="mb-2"
+                          HelperText='Debe incluir el esquema. Ej: "https://api.conector-sapecc.internal"' Required="true" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+            }
+
+            <div class="d-flex justify-end mt-6 gap-2">
+                <MudButton OnClick="Cancelar">Cancelar</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando">
+                    @if (_guardando)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    Guardar
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public ConectorDto? Existente { get; set; }
+    [Inject] private ConectorApiService ConectorApi { get; set; } = default!;
+
+    private bool EsEdicion => Existente is not null;
+    private readonly FormModel _model = new();
+    private bool _guardando;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Existente is not null)
+        {
+            _model.Nombre = Existente.Nombre;
+            _model.TipoProtocolo = Existente.TipoProtocolo;
+            _model.UrlBase = Existente.UrlBase;
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        _guardando = true;
+        _error = null;
+        try
+        {
+            if (EsEdicion)
+            {
+                await ConectorApi.ActualizarAsync(Existente!.Id, new ActualizarConectorDto
+                {
+                    Nombre = _model.Nombre,
+                    TipoProtocolo = _model.TipoProtocolo,
+                    UrlBase = _model.UrlBase
+                });
+            }
+            else
+            {
+                await ConectorApi.CrearAsync(new CrearConectorDto
+                {
+                    Nombre = _model.Nombre,
+                    TipoProtocolo = _model.TipoProtocolo,
+                    UrlBase = _model.UrlBase
+                });
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El nombre es obligatorio.")]
+        public string Nombre { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El protocolo es obligatorio.")]
+        public string TipoProtocolo { get; set; } = "REST";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La URL base es obligatoria.")]
+        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "Debe ser una URL válida, con esquema (http:// o https://).")]
+        public string UrlBase { get; set; } = string.Empty;
+    }
+}

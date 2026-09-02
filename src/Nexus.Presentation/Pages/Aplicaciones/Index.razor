@@ -1,0 +1,114 @@
+@page "/aplicaciones"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject AplicacionApiService AplicacionApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - Aplicaciones</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Aplicaciones</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Aplicaciones del grupo empresarial que requieren integraciones, empresas y conectores propios.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/aplicaciones/nueva">
+        Nueva aplicación
+    </MudButton>
+</div>
+
+<MudPaper Elevation="2" Class="pa-2">
+    <div class="d-flex align-center px-2 pt-2">
+        <MudSwitch T="bool" @bind-Value="_soloActivas" Color="Color.Primary" Label="Solo activas" @bind-Value:after="CargarAsync" />
+    </div>
+
+    <MudTable Items="_aplicaciones" Loading="_cargando" Hover="true" Class="mt-2">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Descripción</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:140px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.CodigoApp</MudChip></MudTd>
+            <MudTd DataLabel="Nombre"><MudLink Href="@($"/aplicaciones/{context.Id}")">@context.Nombre</MudLink></MudTd>
+            <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                    @(context.Estado ? "Activa" : "Inactiva")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudTooltip Text="Configurar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Href="@($"/aplicaciones/{context.Id}")" />
+                </MudTooltip>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => AbrirEditarAsync(context))" />
+                </MudTooltip>
+                <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(context.Estado ? Color.Success : Color.Default)"
+                                   Size="Size.Small" OnClick="@(() => CambiarEstadoAsync(context))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No hay aplicaciones registradas todavía.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<AplicacionDto> _aplicaciones = new();
+    private bool _cargando = true;
+    private bool _soloActivas = true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _aplicaciones = await AplicacionApi.ObtenerTodasAsync(_soloActivas);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task AbrirEditarAsync(AplicacionDto aplicacion)
+    {
+        var parameters = new DialogParameters<AplicacionFormDialog> { { x => x.Existente, aplicacion } };
+        var dialog = await DialogService.ShowAsync<AplicacionFormDialog>("Editar aplicación", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Aplicación actualizada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoAsync(AplicacionDto aplicacion)
+    {
+        try
+        {
+            await AplicacionApi.CambiarEstadoAsync(aplicacion.Id, !aplicacion.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

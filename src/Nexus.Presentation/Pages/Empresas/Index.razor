@@ -1,0 +1,118 @@
+@page "/empresas"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject EmpresaApiService EmpresaApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<PageTitle>Nexus - Empresas</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Empresas</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Compañías del grupo empresarial y sus integraciones configuradas.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirCrearAsync">
+        Nueva empresa
+    </MudButton>
+</div>
+
+<MudPaper Elevation="2" Class="pa-2">
+    <div class="d-flex align-center gap-4 px-2 pt-2 flex-wrap">
+        <MudSwitch T="bool" @bind-Value="_soloActivas" Color="Color.Primary" Label="Solo activas" @bind-Value:after="CargarAsync" />
+        <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por nombre o identificación…" Immediate="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="ml-auto" Style="max-width:320px;" />
+    </div>
+
+    <MudTable Items="@_empresasFiltradas" Loading="_cargando" Hover="true" Class="mt-2">
+        <HeaderContent>
+            <MudTh>Razón social</MudTh>
+            <MudTh>Identificación</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:140px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Razón social">
+                <MudLink Href="@($"/empresas/{context.Id}")">@context.NombreRazonSocial</MudLink>
+            </MudTd>
+            <MudTd DataLabel="Identificación">@context.TipoIdentificacion @context.NumeroIdentificacion</MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                    @(context.Estado ? "Activa" : "Inactiva")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudTooltip Text="Ver detalle">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Navigation.NavigateTo($"/empresas/{context.Id}"))" />
+                </MudTooltip>
+                <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(context.Estado ? Color.Success : Color.Default)"
+                                   Size="Size.Small" OnClick="@(() => CambiarEstadoAsync(context))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No hay empresas registradas todavía.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private async Task AbrirCrearAsync()
+    {
+        var dialog = await DialogService.ShowAsync<EmpresaFormDialog>("Nueva empresa");
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Empresa creada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private List<EmpresaDto> _empresas = new();
+    private bool _cargando = true;
+    private bool _soloActivas = true;
+    private string _filtro = string.Empty;
+
+    private IEnumerable<EmpresaDto> _empresasFiltradas => string.IsNullOrWhiteSpace(_filtro)
+        ? _empresas
+        : _empresas.Where(e =>
+            e.NombreRazonSocial.Contains(_filtro, StringComparison.OrdinalIgnoreCase) ||
+            e.NumeroIdentificacion.Contains(_filtro, StringComparison.OrdinalIgnoreCase));
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _empresas = await EmpresaApi.ObtenerTodasAsync(_soloActivas);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task CambiarEstadoAsync(EmpresaDto empresa)
+    {
+        try
+        {
+            await EmpresaApi.CambiarEstadoAsync(empresa.Id, !empresa.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

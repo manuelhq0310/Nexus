@@ -1,0 +1,319 @@
+@page "/empresas/{Id:long}"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject EmpresaApiService EmpresaApi
+@inject EmpresaConectorApiService EmpresaConectorApi
+@inject ConectorApiService ConectorApi
+@inject AplicacionEmpresaApiService AplicacionEmpresaApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - @(_empresa?.NombreRazonSocial ?? "Empresa")</PageTitle>
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/empresas" Class="mb-4">
+    Volver a Empresas
+</MudButton>
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_empresa is null)
+{
+    <MudAlert Severity="Severity.Error">No se encontró la empresa solicitada.</MudAlert>
+}
+else
+{
+    <MudPaper Elevation="2" Class="pa-6 mb-6">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+            <div class="d-flex align-center">
+                <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mr-4">
+                    @(_empresa.NombreRazonSocial.Length > 0 ? _empresa.NombreRazonSocial[0].ToString().ToUpper() : "?")
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h5">@_empresa.NombreRazonSocial</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        @_empresa.TipoIdentificacion @_empresa.NumeroIdentificacion
+                    </MudText>
+                </div>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <MudChip T="string" Color="@(_empresa.Estado ? Color.Success : Color.Default)">
+                    @(_empresa.Estado ? "Activa" : "Inactiva")
+                </MudChip>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="AbrirEditarEmpresaAsync" />
+                <MudTooltip Text="@(_empresa.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(_empresa.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(_empresa.Estado ? Color.Success : Color.Default)" OnClick="CambiarEstadoEmpresaAsync" />
+                </MudTooltip>
+            </div>
+        </div>
+    </MudPaper>
+
+    <!-- ===================== Conector asociado (relación 1 a 1) ===================== -->
+    <div class="d-flex align-center justify-space-between mb-3">
+        <div>
+            <MudText Typo="Typo.h6">Conector asociado</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">El conector que esta empresa utiliza.</MudText>
+        </div>
+        @if (!_mostrarAgregarConector && _conectorAsociado is null)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => _mostrarAgregarConector = true)">
+                Asociar conector
+            </MudButton>
+        }
+    </div>
+
+    @if (_mostrarAgregarConector)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-4">
+            @if (_conectoresActivos.Any())
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="9">
+                        <MudSelect T="long?" Label="Conector" @bind-Value="_conectorParaAgregarId" Variant="Variant.Outlined">
+                            @foreach (var conector in _conectoresActivos)
+                            {
+                                <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                                   Disabled="_guardandoConector" OnClick="AgregarConectorAsync">
+                            Agregar
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    No hay conectores activos disponibles. <MudLink Href="/conectores">Crea uno primero</MudLink>.
+                </MudAlert>
+            }
+            <div class="d-flex justify-end mt-3">
+                <MudButton Variant="Variant.Text" OnClick="@(() => _mostrarAgregarConector = false)">Listo</MudButton>
+            </div>
+        </MudPaper>
+    }
+
+    <MudPaper Elevation="2" Class="pa-2 mb-6">
+        <MudTable Items="_filasConector" Loading="_cargandoConectores" Hover="true">
+            <HeaderContent>
+                <MudTh>Conector</MudTh>
+                <MudTh>Protocolo</MudTh>
+                <MudTh>URL base</MudTh>
+                <MudTh>Estado</MudTh>
+                <MudTh Style="width:120px;">Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Conector">@context.NombreConector</MudTd>
+                <MudTd DataLabel="Protocolo"><MudChip T="string" Size="Size.Small" Color="Color.Info">@context.TipoProtocolo</MudChip></MudTd>
+                <MudTd DataLabel="URL base"><code>@context.UrlBase</code></MudTd>
+                <MudTd DataLabel="Estado">
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                        @(context.Estado ? "Activo" : "Inactivo")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudTooltip Text="Cambiar conector">
+                        <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" OnClick="@(() => AbrirCambiarConectorAsync(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                        <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                       Color="@(context.Estado ? Color.Success : Color.Default)" Size="Size.Small"
+                                       OnClick="@(() => CambiarEstadoConectorAsync(context))" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">Esta empresa todavía no tiene un conector asociado.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+
+    <!-- ===================== Aplicaciones que usan esta empresa (solo lectura) ===================== -->
+    <MudText Typo="Typo.h6" Class="mb-1">Aplicaciones que utilizan esta empresa</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+        Las integraciones que trae cada aplicación se gestionan desde el detalle de esa
+        <MudLink Href="/aplicaciones">Aplicación</MudLink>, no desde aquí.
+    </MudText>
+
+    <MudPaper Elevation="2" Class="pa-2">
+        <MudTable Items="_aplicaciones" Loading="_cargandoAplicaciones" Hover="true">
+            <HeaderContent>
+                <MudTh>Aplicación</MudTh>
+                <MudTh>Código</MudTh>
+                <MudTh>Estado</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Aplicación">
+                    <MudLink Href="@($"/aplicaciones/{context.AplicacionId}")">@context.NombreAplicacion</MudLink>
+                </MudTd>
+                <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.CodigoAplicacion</MudChip></MudTd>
+                <MudTd DataLabel="Estado">
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                        @(context.Estado ? "Activa" : "Inactiva")
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">
+                    Esta empresa todavía no está asociada a ninguna aplicación.
+                    Ve a <MudLink Href="/aplicaciones">Aplicaciones</MudLink> y asígnasela desde allí.
+                </MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private EmpresaDto? _empresa;
+    private bool _cargando = true;
+
+    // Conector (relación 1 a 1: una empresa tiene a lo sumo un conector asociado)
+    private EmpresaConectorDto? _conectorAsociado;
+    private List<ConectorDto> _conectoresActivos = new();
+    private bool _cargandoConectores = true;
+    private bool _mostrarAgregarConector;
+    private long? _conectorParaAgregarId;
+    private bool _guardandoConector;
+    private List<EmpresaConectorDto> _filasConector =>
+        _conectorAsociado is null ? new List<EmpresaConectorDto>() : new List<EmpresaConectorDto> { _conectorAsociado };
+
+    // Aplicaciones (solo lectura)
+    private List<AplicacionEmpresaDto> _aplicaciones = new();
+    private bool _cargandoAplicaciones = true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _cargandoConectores = true;
+        _cargandoAplicaciones = true;
+        try
+        {
+            _empresa = await EmpresaApi.ObtenerPorIdAsync(Id);
+            _conectorAsociado = await EmpresaConectorApi.ObtenerPorEmpresaAsync(Id);
+            _conectoresActivos = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+            _aplicaciones = await AplicacionEmpresaApi.ObtenerPorEmpresaAsync(Id, soloActivas: false);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+            _cargandoConectores = false;
+            _cargandoAplicaciones = false;
+        }
+    }
+
+    private async Task AgregarConectorAsync()
+    {
+        if (_conectorParaAgregarId is null) return;
+        _guardandoConector = true;
+        try
+        {
+            _conectorAsociado = await EmpresaConectorApi.CrearAsync(new AsignarEmpresaConectorDto
+            {
+                EmpresaId = Id,
+                ConectorId = _conectorParaAgregarId.Value
+            });
+            _conectorParaAgregarId = null;
+            _mostrarAgregarConector = false;
+            Snackbar.Add("Conector asociado correctamente.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _guardandoConector = false;
+        }
+    }
+
+    private async Task AbrirCambiarConectorAsync(EmpresaConectorDto relacion)
+    {
+        var parameters = new DialogParameters<CambiarConectorDialog>
+        {
+            { x => x.RelacionId, relacion.Id },
+            { x => x.ConectorActualId, relacion.ConectorId },
+            { x => x.ConectoresDisponibles, _conectoresActivos }
+        };
+        var dialog = await DialogService.ShowAsync<CambiarConectorDialog>("Cambiar conector", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Conector actualizado correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoConectorAsync(EmpresaConectorDto relacion)
+    {
+        try
+        {
+            await EmpresaConectorApi.CambiarEstadoAsync(relacion.Id, !relacion.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AbrirEditarEmpresaAsync()
+    {
+        if (_empresa is null) return;
+
+        var parameters = new DialogParameters<EmpresaFormDialog> { { x => x.Existente, _empresa } };
+        var dialog = await DialogService.ShowAsync<EmpresaFormDialog>("Editar empresa", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Empresa actualizada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoEmpresaAsync()
+    {
+        if (_empresa is null) return;
+        try
+        {
+            await EmpresaApi.CambiarEstadoAsync(_empresa.Id, !_empresa.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+    }
+}

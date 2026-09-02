@@ -1,0 +1,120 @@
+@page "/conectores"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject ConectorApiService ConectorApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - Conectores</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Conectores</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Microservicios/APIs intermediarias conectadas a cada ERP.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirCrearAsync">
+        Nuevo conector
+    </MudButton>
+</div>
+
+<MudPaper Elevation="2" Class="pa-2">
+    <div class="d-flex align-center px-2 pt-2">
+        <MudSwitch T="bool" @bind-Value="_soloActivos" Color="Color.Primary" Label="Solo activos" @bind-Value:after="CargarAsync" />
+    </div>
+
+    <MudTable Items="_conectores" Loading="_cargando" Hover="true" Dense="false" Class="mt-2">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Protocolo</MudTh>
+            <MudTh>URL base</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:120px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Protocolo"><MudChip T="string" Size="Size.Small" Color="Color.Info">@context.TipoProtocolo</MudChip></MudTd>
+            <MudTd DataLabel="URL base"><code>@context.UrlBase</code></MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                    @(context.Estado ? "Activo" : "Inactivo")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => AbrirEditarAsync(context))" />
+                </MudTooltip>
+                <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(context.Estado ? Color.Success : Color.Default)"
+                                   Size="Size.Small" OnClick="@(() => CambiarEstadoAsync(context))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No hay conectores registrados todavía.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ConectorDto> _conectores = new();
+    private bool _cargando = true;
+    private bool _soloActivos = true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _conectores = await ConectorApi.ObtenerTodosAsync(_soloActivos);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task AbrirCrearAsync()
+    {
+        var dialog = await DialogService.ShowAsync<ConectorFormDialog>("Nuevo conector");
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Conector creado correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task AbrirEditarAsync(ConectorDto conector)
+    {
+        var parameters = new DialogParameters<ConectorFormDialog> { { x => x.Existente, conector } };
+        var dialog = await DialogService.ShowAsync<ConectorFormDialog>("Editar conector", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Conector actualizado correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoAsync(ConectorDto conector)
+    {
+        try
+        {
+            await ConectorApi.CambiarEstadoAsync(conector.Id, !conector.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

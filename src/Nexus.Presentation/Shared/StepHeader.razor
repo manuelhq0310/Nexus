@@ -1,0 +1,25 @@
+<div class="nexus-stepper">
+    @for (var i = 0; i < Steps.Count; i++)
+    {
+        var idx = i;
+        var estado = idx < ActiveIndex ? "completed" : idx == ActiveIndex ? "active" : "";
+        <div class="nexus-step @estado">
+            <div class="nexus-step-circle">
+                @if (idx < ActiveIndex)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                }
+                else
+                {
+                    @(idx + 1)
+                }
+            </div>
+            <div class="nexus-step-label">@Steps[idx]</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<string> Steps { get; set; } = new();
+    [Parameter] public int ActiveIndex { get; set; }
+}

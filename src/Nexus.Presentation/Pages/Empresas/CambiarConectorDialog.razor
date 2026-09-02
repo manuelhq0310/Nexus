@@ -1,0 +1,77 @@
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Class="mr-2 mb-n1" />
+            Cambiar conector
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSelect T="long" Label="Nuevo conector" @bind-Value="_nuevoConectorId" Variant="Variant.Outlined" Class="mb-2">
+            @foreach (var conector in ConectoresDisponibles)
+            {
+                <MudSelectItem T="long" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+            }
+        </MudSelect>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+        }
+
+        <div class="d-flex justify-end mt-6 gap-2">
+            <MudButton OnClick="Cancelar">Cancelar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_guardando || _nuevoConectorId == ConectorActualId)" OnClick="GuardarAsync">
+                @if (_guardando)
+                {
+                    <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                }
+                Guardar
+            </MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public long RelacionId { get; set; }
+    [Parameter, EditorRequired] public long ConectorActualId { get; set; }
+    [Parameter, EditorRequired] public List<ConectorDto> ConectoresDisponibles { get; set; } = new();
+    [Inject] private EmpresaConectorApiService EmpresaConectorApi { get; set; } = default!;
+
+    private long _nuevoConectorId;
+    private bool _guardando;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        _nuevoConectorId = ConectorActualId;
+    }
+
+    private async Task GuardarAsync()
+    {
+        _guardando = true;
+        _error = null;
+        try
+        {
+            await EmpresaConectorApi.CambiarConectorAsync(RelacionId, _nuevoConectorId);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+}

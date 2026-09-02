@@ -1,0 +1,232 @@
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2 mb-n1" />
+            @(EsEdicion ? "Editar empresa" : "Nueva empresa")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="min-width:420px; max-width: 480px;" Class="pa-0">
+
+        @if (!EsEdicion)
+        {
+            <StepHeader Steps="_titulosPasos" ActiveIndex="_pasoActivo" />
+        }
+
+        @if (EsEdicion || _pasoActivo == 0)
+        {
+            <EditForm Model="_model" OnValidSubmit="GuardarDatosAsync">
+                <DataAnnotationsValidator />
+
+                <MudTextField T="string" Label="Tipo de identificación" @bind-Value="_model.TipoIdentificacion" For="@(() => _model.TipoIdentificacion)"
+                              Variant="Variant.Outlined" Class="mb-3" HelperText='Ej: "NIT", "RUC", "CEDULA"' Required="true" />
+                <MudTextField T="string" Label="Número de identificación" @bind-Value="_model.NumeroIdentificacion" For="@(() => _model.NumeroIdentificacion)"
+                              Variant="Variant.Outlined" Class="mb-3" HelperText='Ej: "900.123.456-1"' Required="true" />
+                <MudTextField T="string" Label="Razón social" @bind-Value="_model.NombreRazonSocial" For="@(() => _model.NombreRazonSocial)"
+                              Variant="Variant.Outlined" Class="mb-2" Required="true" />
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+                }
+
+                <div class="d-flex justify-end mt-6 gap-2">
+                    <MudButton OnClick="Cancelar">Cancelar</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando">
+                        @if (_guardando)
+                        {
+                            <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        }
+                        @(EsEdicion ? "Guardar" : "Siguiente")
+                    </MudButton>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <!-- Paso 2 (solo creación): asociar el conector que utilizará esta empresa -->
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Selecciona el conector que utilizará <b>@_model.NombreRazonSocial</b>.
+            </MudText>
+
+            @if (_conectoresActivos.Count == 0)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">
+                    No hay conectores activos. <MudLink Href="/conectores">Crea uno primero</MudLink>; luego podrás
+                    asociarlo desde el detalle de la empresa.
+                </MudAlert>
+            }
+            else
+            {
+                <MudSelect T="long?" Label="Conector" @bind-Value="_conectorSeleccionadoId" Variant="Variant.Outlined" Class="mb-2">
+                    @foreach (var conector in _conectoresActivos)
+                    {
+                        <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+            }
+
+            <div class="d-flex justify-space-between mt-6">
+                <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => _pasoActivo = 0)">
+                    Atrás
+                </MudButton>
+                <div class="d-flex gap-2">
+                    @if (_conectoresActivos.Count == 0)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">
+                            Omitir y finalizar
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="_guardando" OnClick="AsociarConectorAsync">
+                            @if (_guardando)
+                            {
+                                <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                            }
+                            Finalizar
+                        </MudButton>
+                    }
+                </div>
+            </div>
+        }
+
+        </MudContainer>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public EmpresaDto? Existente { get; set; }
+    [Inject] private EmpresaApiService EmpresaApi { get; set; } = default!;
+    [Inject] private ConectorApiService ConectorApi { get; set; } = default!;
+    [Inject] private EmpresaConectorApiService EmpresaConectorApi { get; set; } = default!;
+
+    private bool EsEdicion => Existente is not null;
+    private readonly List<string> _titulosPasos = new() { "Datos", "Conector" };
+    private int _pasoActivo;
+    private readonly FormModel _model = new();
+    private bool _guardando;
+    private string? _error;
+
+    private long? _empresaCreadaId;
+    private List<ConectorDto> _conectoresActivos = new();
+    private long? _conectorSeleccionadoId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Existente is not null)
+        {
+            _model.TipoIdentificacion = Existente.TipoIdentificacion;
+            _model.NumeroIdentificacion = Existente.NumeroIdentificacion;
+            _model.NombreRazonSocial = Existente.NombreRazonSocial;
+        }
+        else
+        {
+            try
+            {
+                _conectoresActivos = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+            }
+            catch (ApiException)
+            {
+                // Si falla la precarga, simplemente se mostrará la alerta de "no hay conectores" en el paso 2.
+            }
+        }
+    }
+
+    private async Task GuardarDatosAsync()
+    {
+        _guardando = true;
+        _error = null;
+        try
+        {
+            if (EsEdicion)
+            {
+                await EmpresaApi.ActualizarAsync(Existente!.Id, new ActualizarEmpresaDto
+                {
+                    TipoIdentificacion = _model.TipoIdentificacion,
+                    NumeroIdentificacion = _model.NumeroIdentificacion,
+                    NombreRazonSocial = _model.NombreRazonSocial
+                });
+                MudDialog.Close(DialogResult.Ok(true));
+                return;
+            }
+
+            var nuevaEmpresa = await EmpresaApi.CrearAsync(new CrearEmpresaDto
+            {
+                TipoIdentificacion = _model.TipoIdentificacion,
+                NumeroIdentificacion = _model.NumeroIdentificacion,
+                NombreRazonSocial = _model.NombreRazonSocial
+            });
+            _empresaCreadaId = nuevaEmpresa.Id;
+            _pasoActivo = 1;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task AsociarConectorAsync()
+    {
+        if (_conectorSeleccionadoId is null)
+        {
+            _error = "Selecciona un conector.";
+            return;
+        }
+
+        _guardando = true;
+        _error = null;
+        try
+        {
+            await EmpresaConectorApi.CrearAsync(new AsignarEmpresaConectorDto
+            {
+                EmpresaId = _empresaCreadaId!.Value,
+                ConectorId = _conectorSeleccionadoId.Value
+            });
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El tipo de identificación es obligatorio.")]
+        public string TipoIdentificacion { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El número de identificación es obligatorio.")]
+        public string NumeroIdentificacion { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La razón social es obligatoria.")]
+        public string NombreRazonSocial { get; set; } = string.Empty;
+    }
+}

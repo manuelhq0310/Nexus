@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+@inject Nexus.Presentation.Services.Auth.AuthService AuthService
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<MudThemeProvider Theme="_theme" IsDarkMode="false" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<AuthorizeView>
+    <Authorized>
+        <MudLayout>
+            <MudAppBar Elevation="1" Color="Color.Transparent" Class="nexus-appbar">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+                <MudText Typo="Typo.h6" Class="nexus-brand-title ml-2">Nexus</MudText>
+                <MudSpacer />
+                <MudText Typo="Typo.body2" Class="mr-3 d-none d-sm-flex">@context.User.Identity?.Name</MudText>
+                <MudTooltip Text="Cerrar sesión">
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="CerrarSesionAsync" />
+                </MudTooltip>
+            </MudAppBar>
+
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="0" Variant="DrawerVariant.Responsive" ClipMode="DrawerClipMode.Always">
+                <NavMenu />
+            </MudDrawer>
+
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+                    @Body
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+    </Authorized>
+    <NotAuthorized>
+        @Body
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#536DFE",
+            Secondary = "#7C4DFF",
+            AppbarBackground = "#1A1F36",
+            AppbarText = "#FFFFFF",
+            Background = "#F5F6FA",
+            DrawerBackground = "#1A1F36",
+            DrawerText = "#CFD3F5",
+            DrawerIcon = "#CFD3F5"
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" } }
+        }
+    };
+
+    private async Task CerrarSesionAsync()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: false);
+    }
+}

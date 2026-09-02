@@ -1,0 +1,119 @@
+@page "/"
+@attribute [Authorize]
+@inject Nexus.Presentation.Services.Api.EmpresaApiService EmpresaApi
+@inject Nexus.Presentation.Services.Api.ConectorApiService ConectorApi
+@inject Nexus.Presentation.Services.Api.IntegracionApiService IntegracionApi
+@inject Nexus.Presentation.Services.Api.AplicacionApiService AplicacionApi
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+
+<PageTitle>Nexus - Panel general</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Panel general</MudText>
+<MudText Typo="Typo.body1" Class="mud-text-secondary mb-6">Resumen de la configuración de integraciones.</MudText>
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-6 nexus-metric-card" Elevation="2" @onclick='@(() => Navigation.NavigateTo("/conectores"))'>
+                <div class="d-flex align-center justify-space-between">
+                    <div>
+                        <MudText Typo="Typo.h3">@_totalConectores</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Conectores activos</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Cable" Size="Size.Large" Color="Color.Secondary" />
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-6 nexus-metric-card" Elevation="2" @onclick='@(() => Navigation.NavigateTo("/integraciones"))'>
+                <div class="d-flex align-center justify-space-between">
+                    <div>
+                        <MudText Typo="Typo.h3">@_totalIntegraciones</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Integraciones activas</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.SyncAlt" Size="Size.Large" Color="Color.Tertiary" />
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-6 nexus-metric-card" Elevation="2" @onclick='@(() => Navigation.NavigateTo("/empresas"))'>
+                <div class="d-flex align-center justify-space-between">
+                    <div>
+                        <MudText Typo="Typo.h3">@_totalEmpresas</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Empresas activas</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" />
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-6 nexus-metric-card" Elevation="2" @onclick='@(() => Navigation.NavigateTo("/aplicaciones"))'>
+                <div class="d-flex align-center justify-space-between">
+                    <div>
+                        <MudText Typo="Typo.h3">@_totalAplicaciones</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Aplicaciones activas</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Apps" Size="Size.Large" Color="Color.Primary" />
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Class="pa-6 mt-6" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-2">Primeros pasos</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+            Configura la plataforma en este orden para dejar una aplicación lista para operar:
+        </MudText>
+        <MudTimeline TimelinePosition="TimelinePosition.Start">
+            <MudTimelineItem Color="Color.Secondary" Icon="@Icons.Material.Filled.Cable">
+                <MudText><b>1. Crea los Conectores</b> — los microservicios/APIs que conectan con cada ERP.</MudText>
+            </MudTimelineItem>
+            <MudTimelineItem Color="Color.Secondary" Icon="@Icons.Material.Filled.SyncAlt">
+                <MudText><b>2. Crea las Integraciones</b> — las acciones de negocio que la plataforma puede ejecutar, y habilita para cada una los conectores que la resuelven.</MudText>
+            </MudTimelineItem>
+            <MudTimelineItem Color="Color.Secondary" Icon="@Icons.Material.Filled.Business">
+                <MudText><b>3. Crea las Empresas</b> — las compañías del grupo empresarial (solo sus datos básicos).</MudText>
+            </MudTimelineItem>
+            <MudTimelineItem Color="Color.Primary" Icon="@Icons.Material.Filled.Apps">
+                <MudText><b>4. Crea una Aplicación</b> — el asistente te guiará para asociarle las integraciones, las empresas que la usarán y los conectores (con sus credenciales) que necesita.</MudText>
+            </MudTimelineItem>
+        </MudTimeline>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                   StartIcon="@Icons.Material.Filled.Add" Href="/aplicaciones/nueva">
+            Crear nueva aplicación
+        </MudButton>
+    </MudPaper>
+}
+
+@code {
+    private bool _cargando = true;
+    private int _totalEmpresas;
+    private int _totalConectores;
+    private int _totalIntegraciones;
+    private int _totalAplicaciones;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var empresas = await EmpresaApi.ObtenerTodasAsync(soloActivas: true);
+            var conectores = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+            var integraciones = await IntegracionApi.ObtenerTodasAsync(soloActivas: true);
+            var aplicaciones = await AplicacionApi.ObtenerTodasAsync(soloActivas: true);
+
+            _totalEmpresas = empresas.Count;
+            _totalConectores = conectores.Count;
+            _totalIntegraciones = integraciones.Count;
+            _totalAplicaciones = aplicaciones.Count;
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+}

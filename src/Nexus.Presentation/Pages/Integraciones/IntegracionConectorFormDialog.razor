@@ -1,0 +1,136 @@
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Cable" Class="mr-2 mb-n1" />
+            @(EsEdicion ? "Editar conector habilitado" : "Habilitar conector para esta integración")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="_model" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+
+            @if (EsEdicion)
+            {
+                <MudTextField T="string" Label="Conector" Value="@Existente!.NombreConector" ReadOnly="true" Variant="Variant.Outlined" Class="mb-3" />
+            }
+            else
+            {
+                <MudSelect T="long?" Label="Conector" @bind-Value="_model.ConectorId" Variant="Variant.Outlined" Class="mb-3" Required="true">
+                    @foreach (var conector in ConectoresDisponibles)
+                    {
+                        <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (ConectoresDisponibles.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mb-3" Dense="true">
+                        No hay conectores activos disponibles. <MudLink Href="/conectores">Crea uno primero</MudLink>.
+                    </MudAlert>
+                }
+            }
+
+            <MudTextField T="string" Label="Ruta del endpoint" @bind-Value="_model.RutaEndpoint" Variant="Variant.Outlined" Class="mb-3"
+                          HelperText='Se concatena con la URL base del conector. Ej: "api/v1/Anticipos/RegistrarAnticipo"' Required="true" />
+
+            <MudTextField T="string" Label="Cola de RabbitMQ destino (opcional)" @bind-Value="_model.ColaRabbitMQDestino" Variant="Variant.Outlined" Class="mb-2" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+            }
+
+            <div class="d-flex justify-end mt-6 gap-2">
+                <MudButton OnClick="Cancelar">Cancelar</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando">
+                    @if (_guardando)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    Guardar
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public long IntegracionId { get; set; }
+    [Parameter] public IntegracionConectorDto? Existente { get; set; }
+    [Parameter] public List<ConectorDto> ConectoresDisponibles { get; set; } = new();
+    [Inject] private IntegracionConectorApiService IntegracionConectorApi { get; set; } = default!;
+
+    private bool EsEdicion => Existente is not null;
+    private readonly FormModel _model = new();
+    private bool _guardando;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Existente is not null)
+        {
+            _model.RutaEndpoint = Existente.RutaEndpoint;
+            _model.ColaRabbitMQDestino = Existente.ColaRabbitMQDestino ?? string.Empty;
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        _guardando = true;
+        _error = null;
+        try
+        {
+            if (EsEdicion)
+            {
+                await IntegracionConectorApi.ActualizarAsync(Existente!.Id, new ActualizarIntegracionConectorDto
+                {
+                    RutaEndpoint = _model.RutaEndpoint,
+                    ColaRabbitMQDestino = string.IsNullOrWhiteSpace(_model.ColaRabbitMQDestino) ? null : _model.ColaRabbitMQDestino
+                });
+            }
+            else
+            {
+                if (_model.ConectorId is null)
+                {
+                    _error = "Selecciona un conector.";
+                    _guardando = false;
+                    return;
+                }
+
+                await IntegracionConectorApi.CrearAsync(new CrearIntegracionConectorDto
+                {
+                    IntegracionId = IntegracionId,
+                    ConectorId = _model.ConectorId.Value,
+                    RutaEndpoint = _model.RutaEndpoint,
+                    ColaRabbitMQDestino = string.IsNullOrWhiteSpace(_model.ColaRabbitMQDestino) ? null : _model.ColaRabbitMQDestino
+                });
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private class FormModel
+    {
+        public long? ConectorId { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La ruta del endpoint es obligatoria.")]
+        public string RutaEndpoint { get; set; } = string.Empty;
+
+        public string ColaRabbitMQDestino { get; set; } = string.Empty;
+    }
+}

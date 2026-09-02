@@ -1,0 +1,277 @@
+@page "/integraciones/{Id:long}"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject IntegracionApiService IntegracionApi
+@inject ConectorApiService ConectorApi
+@inject IntegracionConectorApiService IntegracionConectorApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - @(_integracion?.Nombre ?? "Integración")</PageTitle>
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/integraciones" Class="mb-4">
+    Volver a Integraciones
+</MudButton>
+
+@if (_cargando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_integracion is null)
+{
+    <MudAlert Severity="Severity.Error">No se encontró la integración solicitada.</MudAlert>
+}
+else
+{
+    <MudPaper Elevation="2" Class="pa-6 mb-6">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+            <div class="d-flex align-center">
+                <MudAvatar Color="Color.Secondary" Size="Size.Large" Class="mr-4">
+                    <MudIcon Icon="@Icons.Material.Filled.SyncAlt" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h5">@_integracion.Nombre</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@_integracion.CodigoAccion</MudChip>
+                        @_integracion.Descripcion
+                    </MudText>
+                </div>
+            </div>
+            <MudChip T="string" Color="@(_integracion.Estado ? Color.Success : Color.Default)">
+                @(_integracion.Estado ? "Activa" : "Inactiva")
+            </MudChip>
+        </div>
+    </MudPaper>
+
+    <div class="d-flex align-center justify-space-between mb-3">
+        <div>
+            <MudText Typo="Typo.h6">Conectores habilitados</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Define aquí qué conectores pueden resolver esta integración y con qué endpoint/cola.
+            </MudText>
+        </div>
+        @if (!_mostrarFormularioAgregar)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => _mostrarFormularioAgregar = true)">
+                Habilitar conector
+            </MudButton>
+        }
+    </div>
+
+    @if (_mostrarFormularioAgregar)
+    {
+        <!-- ===================== Mismo formulario del paso 2 del asistente de creación ===================== -->
+        <MudPaper Outlined="true" Class="pa-4 mb-4">
+            @if (_conectoresActivos.Count == 0)
+            {
+                <MudAlert Severity="Severity.Warning">
+                    No hay conectores activos registrados. <MudLink Href="/conectores">Crea uno primero</MudLink>.
+                </MudAlert>
+            }
+            else if (_conectoresDisponiblesParaAgregar.Any())
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="5">
+                        <MudSelect T="long?" Label="Conector" @bind-Value="_nuevoConectorId" Variant="Variant.Outlined">
+                            @foreach (var conector in _conectoresDisponiblesParaAgregar)
+                            {
+                                <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="Ruta del endpoint" @bind-Value="_nuevaRuta" Variant="Variant.Outlined"
+                                      HelperText='Ej: "api/v1/Anticipos/RegistrarAnticipo"' />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField T="string" Label="Cola RabbitMQ (opcional)" @bind-Value="_nuevaCola" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">
+                    Ya habilitaste todos los conectores activos disponibles para esta integración.
+                </MudAlert>
+            }
+
+            @if (!string.IsNullOrEmpty(_errorAgregar))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_errorAgregar</MudAlert>
+            }
+
+            <div class="d-flex justify-end gap-2 mt-3">
+                <MudButton Variant="Variant.Text" OnClick="CerrarFormularioAgregar">
+                    Listo
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                           Disabled="@(_agregandoConector || !_conectoresDisponiblesParaAgregar.Any())" OnClick="AgregarConectorAsync">
+                    @if (_agregandoConector)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    Agregar conector
+                </MudButton>
+            </div>
+        </MudPaper>
+    }
+
+    <MudPaper Elevation="2" Class="pa-2">
+        <MudTable Items="_conectoresHabilitados" Loading="_cargandoConectores" Hover="true">
+            <HeaderContent>
+                <MudTh>Conector</MudTh>
+                <MudTh>Ruta del endpoint</MudTh>
+                <MudTh>Cola RabbitMQ</MudTh>
+                <MudTh>Estado</MudTh>
+                <MudTh Style="width:100px;">Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Conector">@context.NombreConector</MudTd>
+                <MudTd DataLabel="Ruta"><code>@context.RutaEndpoint</code></MudTd>
+                <MudTd DataLabel="Cola">@(context.ColaRabbitMQDestino ?? "—")</MudTd>
+                <MudTd DataLabel="Estado">
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                        @(context.Estado ? "Activo" : "Inactivo")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudTooltip Text="Editar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => AbrirEditarConectorAsync(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                        <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                       Color="@(context.Estado ? Color.Success : Color.Default)"
+                                       Size="Size.Small" OnClick="@(() => CambiarEstadoConectorAsync(context))" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">
+                    Todavía no hay conectores habilitados para esta integración.
+                    Sin al menos uno activo, ninguna empresa podrá usar esta integración.
+                </MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private IntegracionDto? _integracion;
+    private List<IntegracionConectorDto> _conectoresHabilitados = new();
+    private List<ConectorDto> _conectoresActivos = new();
+    private bool _cargando = true;
+    private bool _cargandoConectores = true;
+
+    // Panel inline para habilitar conectores (mismo formulario que el paso 2 del asistente de creación)
+    private bool _mostrarFormularioAgregar;
+    private long? _nuevoConectorId;
+    private string _nuevaRuta = string.Empty;
+    private string _nuevaCola = string.Empty;
+    private bool _agregandoConector;
+    private string? _errorAgregar;
+
+    private IEnumerable<ConectorDto> _conectoresDisponiblesParaAgregar =>
+        _conectoresActivos.Where(c => _conectoresHabilitados.All(h => h.ConectorId != c.Id));
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _cargandoConectores = true;
+        try
+        {
+            _integracion = await IntegracionApi.ObtenerPorIdAsync(Id);
+            _conectoresHabilitados = await IntegracionConectorApi.ObtenerPorIntegracionAsync(Id);
+            _conectoresActivos = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+            _cargandoConectores = false;
+        }
+    }
+
+    private async Task AgregarConectorAsync()
+    {
+        if (_nuevoConectorId is null || string.IsNullOrWhiteSpace(_nuevaRuta))
+        {
+            _errorAgregar = "Selecciona un conector e indica la ruta del endpoint.";
+            return;
+        }
+
+        _agregandoConector = true;
+        _errorAgregar = null;
+        try
+        {
+            var nuevaRelacion = await IntegracionConectorApi.CrearAsync(new CrearIntegracionConectorDto
+            {
+                IntegracionId = Id,
+                ConectorId = _nuevoConectorId.Value,
+                RutaEndpoint = _nuevaRuta,
+                ColaRabbitMQDestino = string.IsNullOrWhiteSpace(_nuevaCola) ? null : _nuevaCola
+            });
+
+            _conectoresHabilitados.Add(nuevaRelacion);
+            _nuevoConectorId = null;
+            _nuevaRuta = string.Empty;
+            _nuevaCola = string.Empty;
+            Snackbar.Add("Conector habilitado correctamente.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _errorAgregar = ex.Message;
+        }
+        finally
+        {
+            _agregandoConector = false;
+        }
+    }
+
+    private void CerrarFormularioAgregar()
+    {
+        _mostrarFormularioAgregar = false;
+        _nuevoConectorId = null;
+        _nuevaRuta = string.Empty;
+        _nuevaCola = string.Empty;
+        _errorAgregar = null;
+    }
+
+    private async Task AbrirEditarConectorAsync(IntegracionConectorDto relacion)
+    {
+        var parameters = new DialogParameters<IntegracionConectorFormDialog>
+        {
+            { x => x.IntegracionId, Id },
+            { x => x.Existente, relacion }
+        };
+        var dialog = await DialogService.ShowAsync<IntegracionConectorFormDialog>("Editar conector habilitado", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Configuración actualizada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoConectorAsync(IntegracionConectorDto relacion)
+    {
+        try
+        {
+            await IntegracionConectorApi.CambiarEstadoAsync(relacion.Id, !relacion.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

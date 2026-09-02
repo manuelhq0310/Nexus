@@ -1,0 +1,112 @@
+@page "/integraciones"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject IntegracionApiService IntegracionApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - Integraciones</PageTitle>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Integraciones</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Catálogo de acciones/procesos de negocio estandarizados.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/integraciones/nueva">
+        Nueva integración
+    </MudButton>
+</div>
+
+<MudPaper Elevation="2" Class="pa-2">
+    <div class="d-flex align-center px-2 pt-2">
+        <MudSwitch T="bool" @bind-Value="_soloActivas" Color="Color.Primary" Label="Solo activas" @bind-Value:after="CargarAsync" />
+    </div>
+
+    <MudTable Items="_integraciones" Loading="_cargando" Hover="true" Class="mt-2">
+        <HeaderContent>
+            <MudTh>Código de acción</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Descripción</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:120px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.CodigoAccion</MudChip></MudTd>
+            <MudTd DataLabel="Nombre"><MudLink Href="@($"/integraciones/{context.Id}")">@context.Nombre</MudLink></MudTd>
+            <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                    @(context.Estado ? "Activa" : "Inactiva")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudTooltip Text="Configurar conectores">
+                    <MudIconButton Icon="@Icons.Material.Filled.Cable" Size="Size.Small" Href="@($"/integraciones/{context.Id}")" />
+                </MudTooltip>
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => AbrirEditarAsync(context))" />
+                </MudTooltip>
+                <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(context.Estado ? Color.Success : Color.Default)"
+                                   Size="Size.Small" OnClick="@(() => CambiarEstadoAsync(context))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No hay integraciones registradas todavía.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<IntegracionDto> _integraciones = new();
+    private bool _cargando = true;
+    private bool _soloActivas = true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _integraciones = await IntegracionApi.ObtenerTodasAsync(_soloActivas);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task AbrirEditarAsync(IntegracionDto integracion)
+    {
+        var parameters = new DialogParameters<IntegracionFormDialog> { { x => x.Existente, integracion } };
+        var dialog = await DialogService.ShowAsync<IntegracionFormDialog>("Editar integración", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Integración actualizada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoAsync(IntegracionDto integracion)
+    {
+        try
+        {
+            await IntegracionApi.CambiarEstadoAsync(integracion.Id, !integracion.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

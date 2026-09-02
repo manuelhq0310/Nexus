@@ -1,0 +1,496 @@
+@page "/aplicaciones/nueva"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject AplicacionApiService AplicacionApi
+@inject AplicacionIntegracionApiService AplicacionIntegracionApi
+@inject AplicacionEmpresaApiService AplicacionEmpresaApi
+@inject AplicacionConectorApiService AplicacionConectorApi
+@inject IntegracionApiService IntegracionApi
+@inject EmpresaApiService EmpresaApi
+@inject ConectorApiService ConectorApi
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - Nueva aplicación</PageTitle>
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/aplicaciones" Class="mb-4">
+    Volver a Aplicaciones
+</MudButton>
+
+<MudText Typo="Typo.h4" Class="mb-1">Nueva aplicación</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-6">
+    Registra la aplicación y asígnale de una vez sus integraciones, las empresas que la usarán y los conectores habilitados.
+</MudText>
+
+<MudPaper Elevation="2" Class="pa-6" Style="max-width:820px;">
+
+    @if (!_finalizado)
+    {
+        <StepHeader Steps="_titulosPasos" ActiveIndex="_pasoActivo" />
+    }
+
+    @if (_finalizado)
+    {
+        <!-- ===================== Resumen final ===================== -->
+        <div class="d-flex flex-column align-center py-6">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size:64px;" />
+            <MudText Typo="Typo.h5" Class="mt-4">¡Aplicación configurada!</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6 text-center">
+                <b>@_aplicacionCreada?.Nombre</b> quedó con @_integracionesAgregadas.Count integración(es),
+                @_empresasAgregadas.Count empresa(s) y @_conectoresAgregados.Count conector(es) asociados.
+            </MudText>
+
+            <div class="d-flex gap-3 flex-wrap justify-center">
+                <MudButton Variant="Variant.Outlined" Href="@($"/aplicaciones/{_aplicacionId}")">
+                    Ver detalle de la aplicación
+                </MudButton>
+                <MudButton Variant="Text" Href="/aplicaciones">
+                    Ir al listado
+                </MudButton>
+            </div>
+        </div>
+    }
+    else if (_pasoActivo == 0)
+    {
+        <!-- ===================== Paso 1: Datos de la aplicación ===================== -->
+        <EditForm Model="_aplicacionForm" OnValidSubmit="CrearAplicacionAsync">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string" Label="Código de aplicación" @bind-Value="_aplicacionForm.CodigoApp" Variant="Variant.Outlined" Class="mb-3"
+                          HelperText='Identificador único, ej: "PORTAL_VIAJES"' Required="true" Disabled="_aplicacionId.HasValue" />
+
+            <MudTextField T="string" Label="Nombre" @bind-Value="_aplicacionForm.Nombre" Variant="Variant.Outlined" Class="mb-3"
+                          Required="true" Disabled="_aplicacionId.HasValue" />
+
+            <MudTextField T="string" Label="Descripción" @bind-Value="_aplicacionForm.Descripcion" Variant="Variant.Outlined" Class="mb-2"
+                          Lines="3" Disabled="_aplicacionId.HasValue" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_error</MudAlert>
+            }
+
+            <div class="d-flex justify-end mt-6">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                           EndIcon="@Icons.Material.Filled.ArrowForward" Disabled="_guardando">
+                    @if (_guardando)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    Siguiente
+                </MudButton>
+            </div>
+        </EditForm>
+    }
+    else if (_pasoActivo == 1)
+    {
+        <!-- ===================== Paso 2: Asociar integraciones ===================== -->
+        <MudText Typo="Typo.body1" Class="mb-4">
+            Elige las integraciones que <b>@_aplicacionForm.Nombre</b> podrá ejecutar.
+        </MudText>
+
+        @if (_integracionesActivas.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                No hay integraciones activas. <MudLink Href="/integraciones">Crea una primero</MudLink>.
+            </MudAlert>
+        }
+        else if (_integracionesDisponiblesParaAgregar.Any())
+        {
+            <MudPaper Outlined="true" Class="pa-4 mb-4">
+                <MudGrid>
+                    <MudItem xs="12" sm="9">
+                        <MudSelect T="long?" Label="Integración" @bind-Value="_integracionParaAgregarId" Variant="Variant.Outlined">
+                            @foreach (var integracion in _integracionesDisponiblesParaAgregar)
+                            {
+                                <MudSelectItem T="long?" Value="@integracion.Id">@integracion.Nombre (@integracion.CodigoAccion)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                                   FullWidth="true" Disabled="_agregando" OnClick="AgregarIntegracionAsync">
+                            Agregar
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        @if (_integracionesAgregadas.Count > 0)
+        {
+            <MudTable Items="_integracionesAgregadas" Dense="true" Class="mb-4">
+                <HeaderContent>
+                    <MudTh>Integración</MudTh>
+                    <MudTh>Código</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Integración">@context.NombreIntegracion</MudTd>
+                    <MudTd DataLabel="Código">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@ObtenerCodigoAccion(context.IntegracionId)</MudChip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2 mb-2">@_error</MudAlert>
+        }
+
+        <div class="d-flex justify-space-between mt-6">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => _pasoActivo = 0)">
+                Atrás
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
+                       OnClick="@(() => _pasoActivo = 2)">
+                Siguiente
+            </MudButton>
+        </div>
+    }
+    else if (_pasoActivo == 2)
+    {
+        <!-- ===================== Paso 3: Asociar empresas ===================== -->
+        <MudText Typo="Typo.body1" Class="mb-4">
+            Elige las empresas que utilizarán <b>@_aplicacionForm.Nombre</b>.
+        </MudText>
+
+        @if (_empresasActivas.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                No hay empresas activas. <MudLink Href="/empresas">Crea una primero</MudLink>.
+            </MudAlert>
+        }
+        else if (_empresasDisponiblesParaAgregar.Any())
+        {
+            <MudPaper Outlined="true" Class="pa-4 mb-4">
+                <MudGrid>
+                    <MudItem xs="12" sm="9">
+                        <MudSelect T="long?" Label="Empresa" @bind-Value="_empresaParaAgregarId" Variant="Variant.Outlined">
+                            @foreach (var empresa in _empresasDisponiblesParaAgregar)
+                            {
+                                <MudSelectItem T="long?" Value="@empresa.Id">@empresa.NombreRazonSocial</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                                   FullWidth="true" Disabled="_agregando" OnClick="AgregarEmpresaAsync">
+                            Agregar
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        @if (_empresasAgregadas.Count > 0)
+        {
+            <MudTable Items="_empresasAgregadas" Dense="true" Class="mb-4">
+                <HeaderContent>
+                    <MudTh>Empresa</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Empresa">@context.NombreEmpresa</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2 mb-2">@_error</MudAlert>
+        }
+
+        <div class="d-flex justify-space-between mt-6">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => _pasoActivo = 1)">
+                Atrás
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward"
+                       OnClick="@(() => _pasoActivo = 3)">
+                Siguiente
+            </MudButton>
+        </div>
+    }
+    else if (_pasoActivo == 3)
+    {
+        <!-- ===================== Paso 4: Asociar conectores + credenciales ===================== -->
+        <MudText Typo="Typo.body1" Class="mb-4">
+            Habilita los conectores que <b>@_aplicacionForm.Nombre</b> podrá usar, indicando las credenciales
+            con las que esta aplicación se autentica en cada uno.
+        </MudText>
+
+        @if (_conectoresActivos.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                No hay conectores activos. <MudLink Href="/conectores">Crea uno primero</MudLink>.
+            </MudAlert>
+        }
+        else if (_conectoresDisponiblesParaAgregar.Any())
+        {
+            <MudPaper Outlined="true" Class="pa-4 mb-4">
+                <MudSelect T="long?" Label="Conector" @bind-Value="_conectorParaAgregarId" Variant="Variant.Outlined" Class="mb-3">
+                    @foreach (var conector in _conectoresDisponiblesParaAgregar)
+                    {
+                        <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Usuario ERP" @bind-Value="_usuarioErp" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Password ERP" @bind-Value="_passwordErp" Variant="Variant.Outlined" InputType="InputType.Password" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="API Key (opcional)" @bind-Value="_apiKey" Variant="Variant.Outlined" InputType="InputType.Password" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Token Bearer (opcional)" @bind-Value="_tokenBearer" Variant="Variant.Outlined" InputType="InputType.Password" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="URL base personalizada (opcional)" @bind-Value="_urlBasePersonalizada" Variant="Variant.Outlined"
+                                      HelperText="Solo si esta aplicación debe usar una URL distinta a la URL base del conector." />
+                    </MudItem>
+                </MudGrid>
+
+                <div class="d-flex justify-end mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
+                               Disabled="_agregando" OnClick="AgregarConectorAsync">
+                        @if (_agregando)
+                        {
+                            <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        }
+                        Agregar conector
+                    </MudButton>
+                </div>
+            </MudPaper>
+        }
+
+        @if (_conectoresAgregados.Count > 0)
+        {
+            <MudTable Items="_conectoresAgregados" Dense="true" Class="mb-4">
+                <HeaderContent>
+                    <MudTh>Conector</MudTh>
+                    <MudTh>Usuario ERP</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Conector">@context.NombreConector</MudTd>
+                    <MudTd DataLabel="Usuario ERP">@(context.UsuarioErp ?? "—")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2 mb-2">@_error</MudAlert>
+        }
+
+        <div class="d-flex justify-space-between mt-6">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => _pasoActivo = 2)">
+                Atrás
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" EndIcon="@Icons.Material.Filled.Check" OnClick="@(() => _finalizado = true)">
+                Finalizar
+            </MudButton>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private readonly List<string> _titulosPasos = new() { "Datos", "Integraciones", "Empresas", "Conectores" };
+    private int _pasoActivo;
+    private bool _guardando;
+    private bool _agregando;
+    private bool _finalizado;
+    private string? _error;
+
+    // Paso 1
+    private readonly CrearAplicacionDto _aplicacionForm = new();
+    private long? _aplicacionId;
+    private AplicacionDto? _aplicacionCreada;
+
+    // Paso 2
+    private List<IntegracionDto> _integracionesActivas = new();
+    private readonly List<AplicacionIntegracionDto> _integracionesAgregadas = new();
+    private long? _integracionParaAgregarId;
+    private IEnumerable<IntegracionDto> _integracionesDisponiblesParaAgregar =>
+        _integracionesActivas.Where(i => _integracionesAgregadas.All(a => a.IntegracionId != i.Id));
+
+    // Paso 3
+    private List<EmpresaDto> _empresasActivas = new();
+    private readonly List<AplicacionEmpresaDto> _empresasAgregadas = new();
+    private long? _empresaParaAgregarId;
+    private IEnumerable<EmpresaDto> _empresasDisponiblesParaAgregar =>
+        _empresasActivas.Where(e => _empresasAgregadas.All(a => a.EmpresaId != e.Id));
+
+    // Paso 4
+    private List<ConectorDto> _conectoresActivos = new();
+    private readonly List<AplicacionConectorDto> _conectoresAgregados = new();
+    private long? _conectorParaAgregarId;
+    private string _usuarioErp = string.Empty;
+    private string _passwordErp = string.Empty;
+    private string _apiKey = string.Empty;
+    private string _tokenBearer = string.Empty;
+    private string _urlBasePersonalizada = string.Empty;
+    private IEnumerable<ConectorDto> _conectoresDisponiblesParaAgregar =>
+        _conectoresActivos.Where(c => _conectoresAgregados.All(a => a.ConectorId != c.Id));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _integracionesActivas = await IntegracionApi.ObtenerTodasAsync(soloActivas: true);
+            _empresasActivas = await EmpresaApi.ObtenerTodasAsync(soloActivas: true);
+            _conectoresActivos = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task CrearAplicacionAsync()
+    {
+        if (_aplicacionId.HasValue)
+        {
+            _pasoActivo = 1;
+            return;
+        }
+
+        _guardando = true;
+        _error = null;
+        try
+        {
+            _aplicacionCreada = await AplicacionApi.CrearAsync(_aplicacionForm);
+            _aplicacionId = _aplicacionCreada.Id;
+            _pasoActivo = 1;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private string ObtenerCodigoAccion(long integracionId) =>
+        _integracionesActivas.FirstOrDefault(i => i.Id == integracionId)?.CodigoAccion ?? "—";
+
+    private async Task AgregarIntegracionAsync()
+    {
+        if (_integracionParaAgregarId is null)
+        {
+            _error = "Selecciona una integración.";
+            return;
+        }
+
+        _agregando = true;
+        _error = null;
+        try
+        {
+            var relacion = await AplicacionIntegracionApi.CrearAsync(new CrearAplicacionIntegracionDto
+            {
+                AplicacionId = _aplicacionId!.Value,
+                IntegracionId = _integracionParaAgregarId.Value
+            });
+            _integracionesAgregadas.Add(relacion);
+            _integracionParaAgregarId = null;
+            Snackbar.Add("Integración agregada.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado al agregar la integración: {ex.Message}";
+        }
+        finally
+        {
+            _agregando = false;
+        }
+    }
+
+    private async Task AgregarEmpresaAsync()
+    {
+        if (_empresaParaAgregarId is null)
+        {
+            _error = "Selecciona una empresa.";
+            return;
+        }
+
+        _agregando = true;
+        _error = null;
+        try
+        {
+            var relacion = await AplicacionEmpresaApi.CrearAsync(new AsignarEmpresaAAplicacionDto
+            {
+                AplicacionId = _aplicacionId!.Value,
+                EmpresaId = _empresaParaAgregarId.Value
+            });
+            _empresasAgregadas.Add(relacion);
+            _empresaParaAgregarId = null;
+            Snackbar.Add("Empresa agregada.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado al agregar la empresa: {ex.Message}";
+        }
+        finally
+        {
+            _agregando = false;
+        }
+    }
+
+    private async Task AgregarConectorAsync()
+    {
+        if (_conectorParaAgregarId is null)
+        {
+            _error = "Selecciona un conector.";
+            return;
+        }
+
+        _agregando = true;
+        _error = null;
+        try
+        {
+            var relacion = await AplicacionConectorApi.CrearAsync(new CrearAplicacionConectorDto
+            {
+                AplicacionId = _aplicacionId!.Value,
+                ConectorId = _conectorParaAgregarId.Value,
+                UsuarioErp = string.IsNullOrWhiteSpace(_usuarioErp) ? null : _usuarioErp,
+                PasswordErp = string.IsNullOrWhiteSpace(_passwordErp) ? null : _passwordErp,
+                ApiKey = string.IsNullOrWhiteSpace(_apiKey) ? null : _apiKey,
+                TokenBearer = string.IsNullOrWhiteSpace(_tokenBearer) ? null : _tokenBearer,
+                UrlBasePersonalizada = string.IsNullOrWhiteSpace(_urlBasePersonalizada) ? null : _urlBasePersonalizada
+            });
+            _conectoresAgregados.Add(relacion);
+            _conectorParaAgregarId = null;
+            _usuarioErp = string.Empty;
+            _passwordErp = string.Empty;
+            _apiKey = string.Empty;
+            _tokenBearer = string.Empty;
+            _urlBasePersonalizada = string.Empty;
+            Snackbar.Add("Conector agregado.", Severity.Success);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado al agregar el conector: {ex.Message}";
+        }
+        finally
+        {
+            _agregando = false;
+        }
+    }
+}

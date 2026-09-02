@@ -1,0 +1,117 @@
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.SyncAlt" Class="mr-2 mb-n1" />
+            @(EsEdicion ? "Editar integración" : "Nueva integración")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="_model" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string" Label="Código de acción" @bind-Value="_model.CodigoAccion" For="@(() => _model.CodigoAccion)" Variant="Variant.Outlined" Class="mb-3"
+                          HelperText='Ej: "REGISTRAR_ANTICIPO" (identificador único, en mayúsculas)' Required="true"
+                          Disabled="EsEdicion" />
+
+            <MudTextField T="string" Label="Nombre" @bind-Value="_model.Nombre" For="@(() => _model.Nombre)" Variant="Variant.Outlined" Class="mb-3"
+                          HelperText='Ej: "Registro de Anticipos de Viaje"' Required="true" />
+
+            <MudTextField T="string" Label="Descripción" @bind-Value="_model.Descripcion" For="@(() => _model.Descripcion)" Variant="Variant.Outlined" Class="mb-2"
+                          Lines="3" />
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+            }
+
+            <div class="d-flex justify-end mt-6 gap-2">
+                <MudButton OnClick="Cancelar">Cancelar</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando">
+                    @if (_guardando)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                    }
+                    Guardar
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public IntegracionDto? Existente { get; set; }
+    [Inject] private IntegracionApiService IntegracionApi { get; set; } = default!;
+
+    private bool EsEdicion => Existente is not null;
+    private readonly FormModel _model = new();
+    private bool _guardando;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Existente is not null)
+        {
+            _model.CodigoAccion = Existente.CodigoAccion;
+            _model.Nombre = Existente.Nombre;
+            _model.Descripcion = Existente.Descripcion ?? string.Empty;
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        _guardando = true;
+        _error = null;
+        try
+        {
+            if (EsEdicion)
+            {
+                await IntegracionApi.ActualizarAsync(Existente!.Id, new ActualizarIntegracionDto
+                {
+                    CodigoAccion = Existente.CodigoAccion, // inmutable: se mantiene el código original
+                    Nombre = _model.Nombre,
+                    Descripcion = _model.Descripcion
+                });
+            }
+            else
+            {
+                await IntegracionApi.CrearAsync(new CrearIntegracionDto
+                {
+                    CodigoAccion = _model.CodigoAccion.Trim().ToUpperInvariant(),
+                    Nombre = _model.Nombre,
+                    Descripcion = _model.Descripcion
+                });
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El código de acción es obligatorio.")]
+        public string CodigoAccion { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El nombre es obligatorio.")]
+        public string Nombre { get; set; } = string.Empty;
+
+        public string Descripcion { get; set; } = string.Empty;
+    }
+}

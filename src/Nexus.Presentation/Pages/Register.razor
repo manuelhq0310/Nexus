@@ -1,0 +1,78 @@
+@page "/register"
+@inject Nexus.Presentation.Services.Auth.AuthService AuthService
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+@using Nexus.Presentation.Models
+
+<PageTitle>Nexus - Crear cuenta</PageTitle>
+
+<div class="nexus-auth-container">
+    <MudPaper Class="nexus-auth-card pa-8" Elevation="8" Style="border-radius: 16px;">
+        <div class="d-flex flex-column align-center mb-6">
+            <MudAvatar Color="Color.Secondary" Size="Size.Large" Style="width:64px;height:64px;font-size:1.8rem;">N</MudAvatar>
+            <MudText Typo="Typo.h5" Class="nexus-brand-title mt-3">Crear cuenta</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Regístrate para acceder a Nexus</MudText>
+        </div>
+
+        <EditForm Model="_model" OnValidSubmit="RegistrarAsync">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string" Label="Nombre completo" @bind-Value="_model.FullName"
+                          Variant="Variant.Outlined" Class="mb-4"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+
+            <MudTextField T="string" Label="Correo electrónico" @bind-Value="_model.Email"
+                          Variant="Variant.Outlined" Class="mb-4" InputType="InputType.Email"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
+
+            <MudTextField T="string" Label="Contraseña" @bind-Value="_model.Password"
+                          Variant="Variant.Outlined" Class="mb-4" InputType="InputType.Password"
+                          HelperText="Mínimo 8 caracteres" />
+
+            <MudTextField T="string" Label="Confirmar contraseña" @bind-Value="_model.ConfirmPassword"
+                          Variant="Variant.Outlined" Class="mb-2" InputType="InputType.Password" />
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3" Dense="true">@_errorMessage</MudAlert>
+            }
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Secondary"
+                       FullWidth="true" Class="mt-6" Size="Size.Large" Disabled="_cargando">
+                @if (_cargando)
+                {
+                    <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                }
+                Crear cuenta
+            </MudButton>
+        </EditForm>
+
+        <MudText Typo="Typo.body2" Class="mt-6 text-center">
+            ¿Ya tienes cuenta?
+            <MudLink Href="/login">Inicia sesión</MudLink>
+        </MudText>
+    </MudPaper>
+</div>
+
+@code {
+    private readonly RegisterRequestDto _model = new();
+    private bool _cargando;
+    private string? _errorMessage;
+
+    private async Task RegistrarAsync()
+    {
+        _cargando = true;
+        _errorMessage = null;
+
+        var (success, error) = await AuthService.RegisterAsync(_model);
+
+        _cargando = false;
+
+        if (!success)
+        {
+            _errorMessage = error ?? "No fue posible completar el registro.";
+            return;
+        }
+
+        Navigation.NavigateTo("/", forceLoad: false);
+    }
+}
