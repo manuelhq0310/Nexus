@@ -7,9 +7,14 @@
     <MudDivider Class="my-2" />
     <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Configuración</MudText>
 
-    <MudNavLink Href="/conectores" Icon="@Icons.Material.Filled.Cable">
-        Conectores
-    </MudNavLink>
+    <MudNavGroup Title="Conectores" Icon="@Icons.Material.Filled.Cable" Expanded="true">
+        <MudNavLink Href="/conectores" Match="NavLinkMatch.All">
+            Todos los conectores
+        </MudNavLink>
+        <MudNavLink Href="/conectores/unoe-consultas">
+            Consultas UnoE
+        </MudNavLink>
+    </MudNavGroup>
     <MudNavLink Href="/integraciones" Icon="@Icons.Material.Filled.SyncAlt">
         Integraciones
     </MudNavLink>

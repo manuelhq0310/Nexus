@@ -1,0 +1,131 @@
+@page "/conectores/unoe-consultas"
+@attribute [Authorize]
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+@inject UnoEConsultaApiService UnoEConsultaApi
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Nexus - Consultas UnoE</PageTitle>
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/conectores" Class="mb-4">
+    Volver a Conectores
+</MudButton>
+
+<div class="d-flex align-center justify-space-between mb-4 flex-wrap gap-2">
+    <div>
+        <MudText Typo="Typo.h4">Consultas del Conector UnoE</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Configura, sin necesidad de código, las diferentes consultas genéricas que se pueden ejecutar contra UnoE.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AbrirCrearAsync">
+        Nueva consulta
+    </MudButton>
+</div>
+
+<MudPaper Elevation="2" Class="pa-2">
+    <MudTable Items="_consultas" Loading="_cargando" Hover="true">
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Descripción</MudTh>
+            <MudTh>Conexión</MudTh>
+            <MudTh>Id proveedor</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:120px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.CodigoConsulta</MudChip></MudTd>
+            <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+            <MudTd DataLabel="Conexión">@context.NombreConexion</MudTd>
+            <MudTd DataLabel="Id proveedor">@context.IdProveedor</MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
+                    @(context.Estado ? "Activa" : "Inactiva")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => AbrirEditarAsync(context))" />
+                </MudTooltip>
+                <MudTooltip Text="@(context.Estado ? "Desactivar" : "Activar")">
+                    <MudIconButton Icon="@(context.Estado ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                   Color="@(context.Estado ? Color.Success : Color.Default)"
+                                   Size="Size.Small" OnClick="@(() => CambiarEstadoAsync(context))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No hay consultas de UnoE configuradas todavía.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<UnoEConsultaConfigDto> _consultas = new();
+    private bool _cargando = true;
+
+    protected override Task OnInitializedAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        try
+        {
+            _consultas = await UnoEConsultaApi.ObtenerTodasAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task AbrirCrearAsync()
+    {
+        var dialog = await DialogService.ShowAsync<UnoEConsultaFormDialog>("Nueva consulta UnoE");
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Consulta creada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task AbrirEditarAsync(UnoEConsultaConfigDto consulta)
+    {
+        var parameters = new DialogParameters<UnoEConsultaFormDialog> { { x => x.Existente, consulta } };
+        var dialog = await DialogService.ShowAsync<UnoEConsultaFormDialog>("Editar consulta UnoE", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Consulta actualizada correctamente.", Severity.Success);
+            await CargarAsync();
+        }
+    }
+
+    private async Task CambiarEstadoAsync(UnoEConsultaConfigDto consulta)
+    {
+        try
+        {
+            await UnoEConsultaApi.CambiarEstadoAsync(consulta.CodigoConsulta, !consulta.Estado);
+            Snackbar.Add("Estado actualizado.", Severity.Success);
+            await CargarAsync();
+        }
+        catch (ApiException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+    }
+}

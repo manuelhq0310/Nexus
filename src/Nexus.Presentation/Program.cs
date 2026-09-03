@@ -48,6 +48,7 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmpresaApiService>();
 builder.Services.AddScoped<EmpresaConectorApiService>();
+builder.Services.AddScoped<UnoEConsultaApiService>();
 builder.Services.AddScoped<ConectorApiService>();
 builder.Services.AddScoped<IntegracionApiService>();
 builder.Services.AddScoped<IntegracionConectorApiService>();

@@ -1,0 +1,193 @@
+@using System.Xml.Linq
+@using Nexus.Presentation.Models
+@using Nexus.Presentation.Services.Api
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Class="mr-2 mb-n1" />
+            @(EsEdicion ? "Editar consulta UnoE" : "Nueva consulta UnoE")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="min-width:480px; max-width:560px;" Class="pa-0">
+            <EditForm Model="_model" OnValidSubmit="GuardarAsync">
+                <DataAnnotationsValidator />
+
+                <MudTextField T="string" Label="Código de consulta" @bind-Value="_model.CodigoConsulta" For="@(() => _model.CodigoConsulta)"
+                              Variant="Variant.Outlined" Class="mb-3"
+                              HelperText='Identificador único, ej: "CONSULTAR_SALDO_PROVEEDOR"'
+                              Required="true" Disabled="EsEdicion" />
+
+                <MudTextField T="string" Label="Descripción" @bind-Value="_model.Descripcion" Variant="Variant.Outlined" Class="mb-3" Lines="2" />
+
+                <MudTextField T="string" Label="Nombre de conexión" @bind-Value="_model.NombreConexion" For="@(() => _model.NombreConexion)"
+                              Variant="Variant.Outlined" Class="mb-3"
+                              HelperText="Nombre de la conexión configurada del lado de UnoE." Required="true" />
+
+                <MudTextField T="string" Label="Id proveedor" @bind-Value="_model.IdProveedor" For="@(() => _model.IdProveedor)"
+                              Variant="Variant.Outlined" Class="mb-3"
+                              HelperText="Identificador del proveedor/reporte en UnoE que resuelve esta consulta." Required="true" />
+
+                <MudTextField T="string" Label="Plantilla de parámetros (XML)" @bind-Value="_model.PlantillaParametrosXml"
+                              Variant="Variant.Outlined" Class="mb-1" Lines="8"
+                              Style="font-family: 'Roboto Mono', monospace; font-size: 0.85rem;"
+                              HelperText="XML con los parámetros que espera la consulta en UnoE." />
+
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudButton Variant="Variant.Text" Size="Size.Small" StartIcon="@Icons.Material.Filled.CheckCircleOutline"
+                               OnClick="ValidarXml">
+                        Validar XML
+                    </MudButton>
+                    @if (_xmlValido.HasValue)
+                    {
+                        @if (_xmlValido.Value)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Check">XML válido</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Icon="@Icons.Material.Filled.Close">XML inválido</MudChip>
+                        }
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_xmlError))
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">@_xmlError</MudAlert>
+                }
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
+                }
+
+                <div class="d-flex justify-end mt-6 gap-2">
+                    <MudButton OnClick="Cancelar">Cancelar</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_guardando">
+                        @if (_guardando)
+                        {
+                            <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        }
+                        Guardar
+                    </MudButton>
+                </div>
+            </EditForm>
+        </MudContainer>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public UnoEConsultaConfigDto? Existente { get; set; }
+    [Inject] private UnoEConsultaApiService UnoEConsultaApi { get; set; } = default!;
+
+    private bool EsEdicion => Existente is not null;
+    private readonly FormModel _model = new();
+    private bool _guardando;
+    private string? _error;
+    private bool? _xmlValido;
+    private string? _xmlError;
+
+    protected override void OnInitialized()
+    {
+        if (Existente is not null)
+        {
+            _model.CodigoConsulta = Existente.CodigoConsulta;
+            _model.Descripcion = Existente.Descripcion ?? string.Empty;
+            _model.NombreConexion = Existente.NombreConexion ?? string.Empty;
+            _model.IdProveedor = Existente.IdProveedor ?? string.Empty;
+            _model.PlantillaParametrosXml = Existente.PlantillaParametrosXml ?? string.Empty;
+        }
+    }
+
+    private void ValidarXml()
+    {
+        _xmlError = null;
+
+        if (string.IsNullOrWhiteSpace(_model.PlantillaParametrosXml))
+        {
+            _xmlValido = null;
+            return;
+        }
+
+        try
+        {
+            XDocument.Parse(_model.PlantillaParametrosXml);
+            _xmlValido = true;
+        }
+        catch (System.Xml.XmlException ex)
+        {
+            _xmlValido = false;
+            _xmlError = $"El XML no es válido: {ex.Message}";
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        // Se valida el XML (si hay contenido) antes de enviar, para detectar errores de formato
+        // sin necesidad de conocimientos técnicos ("no-code").
+        ValidarXml();
+        if (_xmlValido == false)
+        {
+            return;
+        }
+
+        _guardando = true;
+        _error = null;
+        try
+        {
+            var dto = new UnoEConsultaConfigDto
+            {
+                Id = Existente?.Id ?? 0,
+                CodigoConsulta = EsEdicion ? Existente!.CodigoConsulta : _model.CodigoConsulta.Trim().ToUpperInvariant(),
+                Descripcion = _model.Descripcion,
+                NombreConexion = _model.NombreConexion,
+                IdProveedor = _model.IdProveedor,
+                PlantillaParametrosXml = _model.PlantillaParametrosXml,
+                Estado = Existente?.Estado ?? true
+            };
+
+            if (EsEdicion)
+            {
+                await UnoEConsultaApi.ActualizarAsync(dto);
+            }
+            else
+            {
+                await UnoEConsultaApi.CrearAsync(dto);
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private class FormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El código de consulta es obligatorio.")]
+        public string CodigoConsulta { get; set; } = string.Empty;
+
+        public string Descripcion { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El nombre de conexión es obligatorio.")]
+        public string NombreConexion { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El id de proveedor es obligatorio.")]
+        public string IdProveedor { get; set; } = string.Empty;
+
+        public string PlantillaParametrosXml { get; set; } = string.Empty;
+    }
+}
