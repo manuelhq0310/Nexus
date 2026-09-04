@@ -22,6 +22,20 @@
             <MudTextField T="string" Label="Descripción" @bind-Value="_model.Descripcion" For="@(() => _model.Descripcion)" Variant="Variant.Outlined" Class="mb-2"
                           Lines="3" />
 
+            @if (!EsEdicion)
+            {
+                <MudSelect T="TipoIntegracion?" Label="Tipo de integración" @bind-Value="_model.Tipo" For="@(() => _model.Tipo)"
+                           Variant="Variant.Outlined" Class="mb-3" Required="true">
+                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Consulta">Consulta</MudSelectItem>
+                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
+                </MudSelect>
+
+                @if (_model.Tipo == TipoIntegracion.Consulta)
+                {
+                    <MudCheckBox T="bool" @bind-Value="_model.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" />
+                }
+            }
+
             @if (!string.IsNullOrEmpty(_error))
             {
                 <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@_error</MudAlert>
@@ -63,6 +77,12 @@
 
     private async Task GuardarAsync()
     {
+        if (!EsEdicion && _model.Tipo is null)
+        {
+            _error = "Selecciona el tipo de integración.";
+            return;
+        }
+
         _guardando = true;
         _error = null;
         try
@@ -82,7 +102,10 @@
                 {
                     CodigoAccion = _model.CodigoAccion.Trim().ToUpperInvariant(),
                     Nombre = _model.Nombre,
-                    Descripcion = _model.Descripcion
+                    Descripcion = _model.Descripcion,
+                    Tipo = _model.Tipo,
+                    // Solo tiene sentido para consultas; si el tipo es Escritura se envía en false.
+                    ConsultaGenerica = _model.Tipo == TipoIntegracion.Consulta && _model.ConsultaGenerica
                 });
             }
 
@@ -113,5 +136,12 @@
         public string Nombre { get; set; } = string.Empty;
 
         public string Descripcion { get; set; } = string.Empty;
+
+        // Sin [Required]: este campo solo se muestra (y se valida) al crear, nunca al editar.
+        // Con [Required] el formulario de edición quedaría siempre inválido, ya que Tipo
+        // nunca se puebla ni se renderiza en ese modo.
+        public TipoIntegracion? Tipo { get; set; }
+
+        public bool ConsultaGenerica { get; set; }
     }
 }
