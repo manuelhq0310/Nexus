@@ -63,18 +63,15 @@
             <MudTextField T="string" Label="Descripción" @bind-Value="_integracionForm.Descripcion" Variant="Variant.Outlined" Class="mb-2"
                           Lines="3" Disabled="_integracionId.HasValue" />
 
-            @if (!_integracionId.HasValue)
-            {
-                <MudSelect T="TipoIntegracion?" Label="Tipo de integración" @bind-Value="_integracionForm.Tipo"
-                           Variant="Variant.Outlined" Class="mb-3">
-                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Consulta">Consulta</MudSelectItem>
-                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
-                </MudSelect>
+            <MudSelect T="TipoIntegracion?" Label="Tipo de integración" @bind-Value="_integracionForm.Tipo"
+                       Variant="Variant.Outlined" Class="mb-3" Disabled="_integracionId.HasValue">
+                <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Consulta">Consulta</MudSelectItem>
+                <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
+            </MudSelect>
 
-                @if (_integracionForm.Tipo == TipoIntegracion.Consulta)
-                {
-                    <MudCheckBox T="bool" @bind-Value="_integracionForm.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" />
-                }
+            @if (_integracionForm.Tipo == TipoIntegracion.Consulta)
+            {
+                <MudCheckBox T="bool" @bind-Value="_integracionForm.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" Disabled="_integracionId.HasValue" />
             }
 
             @if (!string.IsNullOrEmpty(_error))

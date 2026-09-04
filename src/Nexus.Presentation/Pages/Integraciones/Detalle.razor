@@ -34,6 +34,16 @@ else
                     <MudText Typo="Typo.h5">@_integracion.Nombre</MudText>
                     <MudText Typo="Typo.body2" Class="mud-text-secondary">
                         <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@_integracion.CodigoAccion</MudChip>
+                        @if (_integracion.Tipo is not null)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@(_integracion.Tipo == TipoIntegracion.Consulta ? Color.Info : Color.Warning)">
+                                @(_integracion.Tipo == TipoIntegracion.Consulta ? "Consulta" : "Escritura")
+                            </MudChip>
+                            @if (_integracion.Tipo == TipoIntegracion.Consulta && _integracion.ConsultaGenerica)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Genérica</MudChip>
+                            }
+                        }
                         @_integracion.Descripcion
                     </MudText>
                 </div>

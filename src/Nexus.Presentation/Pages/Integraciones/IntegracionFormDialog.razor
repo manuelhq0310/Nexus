@@ -22,18 +22,15 @@
             <MudTextField T="string" Label="Descripción" @bind-Value="_model.Descripcion" For="@(() => _model.Descripcion)" Variant="Variant.Outlined" Class="mb-2"
                           Lines="3" />
 
-            @if (!EsEdicion)
-            {
-                <MudSelect T="TipoIntegracion?" Label="Tipo de integración" @bind-Value="_model.Tipo" For="@(() => _model.Tipo)"
-                           Variant="Variant.Outlined" Class="mb-3" Required="true">
-                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Consulta">Consulta</MudSelectItem>
-                    <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
-                </MudSelect>
+            <MudSelect T="TipoIntegracion?" Label="Tipo de integración" @bind-Value="_model.Tipo" For="@(() => _model.Tipo)"
+                       Variant="Variant.Outlined" Class="mb-3" Required="true">
+                <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Consulta">Consulta</MudSelectItem>
+                <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
+            </MudSelect>
 
-                @if (_model.Tipo == TipoIntegracion.Consulta)
-                {
-                    <MudCheckBox T="bool" @bind-Value="_model.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" />
-                }
+            @if (_model.Tipo == TipoIntegracion.Consulta)
+            {
+                <MudCheckBox T="bool" @bind-Value="_model.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" />
             }
 
             @if (!string.IsNullOrEmpty(_error))
@@ -72,15 +69,17 @@
             _model.CodigoAccion = Existente.CodigoAccion;
             _model.Nombre = Existente.Nombre;
             _model.Descripcion = Existente.Descripcion ?? string.Empty;
+            _model.Tipo = Existente.Tipo;
+            _model.ConsultaGenerica = Existente.ConsultaGenerica;
         }
     }
 
     private async Task GuardarAsync()
     {
-        if (!EsEdicion && _model.Tipo is null)
+        // Si el tipo es Escritura, ConsultaGenerica no aplica.
+        if (_model.Tipo == TipoIntegracion.Escritura)
         {
-            _error = "Selecciona el tipo de integración.";
-            return;
+            _model.ConsultaGenerica = false;
         }
 
         _guardando = true;
@@ -93,7 +92,9 @@
                 {
                     CodigoAccion = Existente.CodigoAccion, // inmutable: se mantiene el código original
                     Nombre = _model.Nombre,
-                    Descripcion = _model.Descripcion
+                    Descripcion = _model.Descripcion,
+                    Tipo = _model.Tipo,
+                    ConsultaGenerica = _model.ConsultaGenerica
                 });
             }
             else
@@ -104,8 +105,7 @@
                     Nombre = _model.Nombre,
                     Descripcion = _model.Descripcion,
                     Tipo = _model.Tipo,
-                    // Solo tiene sentido para consultas; si el tipo es Escritura se envía en false.
-                    ConsultaGenerica = _model.Tipo == TipoIntegracion.Consulta && _model.ConsultaGenerica
+                    ConsultaGenerica = _model.ConsultaGenerica
                 });
             }
 
@@ -137,9 +137,7 @@
 
         public string Descripcion { get; set; } = string.Empty;
 
-        // Sin [Required]: este campo solo se muestra (y se valida) al crear, nunca al editar.
-        // Con [Required] el formulario de edición quedaría siempre inválido, ya que Tipo
-        // nunca se puebla ni se renderiza en ese modo.
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Selecciona el tipo de integración.")]
         public TipoIntegracion? Tipo { get; set; }
 
         public bool ConsultaGenerica { get; set; }

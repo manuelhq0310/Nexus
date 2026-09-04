@@ -28,6 +28,7 @@
             <MudTh>Código de acción</MudTh>
             <MudTh>Nombre</MudTh>
             <MudTh>Descripción</MudTh>
+            <MudTh>Tipo</MudTh>
             <MudTh>Estado</MudTh>
             <MudTh Style="width:120px;">Acciones</MudTh>
         </HeaderContent>
@@ -35,6 +36,22 @@
             <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.CodigoAccion</MudChip></MudTd>
             <MudTd DataLabel="Nombre"><MudLink Href="@($"/integraciones/{context.Id}")">@context.Nombre</MudLink></MudTd>
             <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+            <MudTd DataLabel="Tipo">
+                @if (context.Tipo is not null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Tipo == TipoIntegracion.Consulta ? Color.Info : Color.Warning)">
+                        @(context.Tipo == TipoIntegracion.Consulta ? "Consulta" : "Escritura")
+                    </MudChip>
+                    @if (context.Tipo == TipoIntegracion.Consulta && context.ConsultaGenerica)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">Genérica</MudChip>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">—</MudText>
+                }
+            </MudTd>
             <MudTd DataLabel="Estado">
                 <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
                     @(context.Estado ? "Activa" : "Inactiva")
