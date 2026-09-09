@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-NexusDB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD en tu archivo .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-NexusDB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nexus.api:
+    build:
+      context: .
+      dockerfile: src/Nexus.Api/Dockerfile
+    container_name: nexus-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__NexusDB: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-NexusDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD en tu archivo .env}"
+      JwtSettings__Secret: ${JWT_SECRET:?Debes definir JWT_SECRET en tu archivo .env (32+ caracteres)}
+      JwtSettings__Issuer: ${JWT_ISSUER:-Nexus.Api}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-Nexus.Clients}
+      JwtSettings__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
+      # Aplica migraciones de EF Core automáticamente al arrancar el contenedor.
+      # Desactívalo (false) si prefieres correr `dotnet ef database update` tú mismo.
+      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-true}
+    ports:
+      - "5100:8080"
+
+  nexus.presentation:
+    build:
+      context: .
+      dockerfile: src/Nexus.Presentation/Dockerfile
+    container_name: nexus-frontend
+    restart: unless-stopped
+    depends_on:
+      - nexus.api
+    environment:
+      # URL con la que el NAVEGADOR del usuario alcanza al backend (no el nombre
+      # interno "nexus.api" de la red de Docker, que no es accesible desde fuera).
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:5100}
+    ports:
+      - "5250:80"
+
+volumes:
+  nexus_postgres_data:
