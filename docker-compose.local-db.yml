@@ -1,0 +1,37 @@
+# Archivo OPCIONAL de superposición: agrega un Postgres local en Docker para
+# pruebas/desarrollo, sin tocar el docker-compose.yml principal (que asume una
+# base de datos en la nube). Úsalo combinando ambos archivos:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local-db.yml up -d --build
+#
+# En este caso, NEXUS_DB_CONNECTION_STRING de tu .env se ignora (queda sobrescrita
+# más abajo) y se conecta automáticamente al Postgres de este mismo archivo.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-NexusDB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-NexusDB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nexus.api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__NexusDB: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-NexusDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres_dev_password}"
+
+volumes:
+  nexus_postgres_data:

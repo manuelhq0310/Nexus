@@ -1,16 +1,19 @@
 # Dockerización de Nexus
 
-Esta solución se dockeriza en 3 contenedores orquestados con `docker-compose`:
+Esta solución se dockeriza en 2 contenedores orquestados con `docker-compose`. La base de
+datos **no se dockeriza**: se asume que ya tienes un PostgreSQL administrado en la nube
+(Azure Database for PostgreSQL, AWS RDS, Supabase, Neon, Render, etc.) y el backend se
+conecta a él por red.
 
-| Servicio            | Contenido                                | Puerto host |
-|---------------------|-------------------------------------------|-------------|
-| `postgres`          | PostgreSQL 16                             | `5432`      |
-| `nexus.api`          | Backend (.NET 8, ASP.NET Core)            | `5100`      |
-| `nexus.presentation` | Frontend (Blazor WASM servido por Nginx)  | `5250`      |
+| Servicio             | Contenido                                | Puerto host |
+|-----------------------|-------------------------------------------|-------------|
+| `nexus.api`           | Backend (.NET 8, ASP.NET Core)            | `5100`      |
+| `nexus.presentation`  | Frontend (Blazor WASM servido por Nginx)  | `5250`      |
 
 ```
 Nexus/
-├── docker-compose.yml
+├── docker-compose.yml              # backend + frontend (BD en la nube)
+├── docker-compose.local-db.yml     # OPCIONAL: agrega un Postgres local
 ├── .env.example
 ├── .dockerignore
 └── src/
@@ -26,7 +29,8 @@ Nexus/
 ## Requisitos previos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (incluye Compose) o Docker Engine + plugin `docker compose` en Linux.
-- Nada de .NET SDK instalado localmente es estrictamente necesario para *correr* los contenedores — pero **sí lo necesitas para el paso 1** (generar la migración inicial), a menos que ya la tengas generada.
+- Una base de datos PostgreSQL accesible desde donde corras estos contenedores (nube o local), con la cadena de conexión a mano.
+- .NET SDK 8 instalado localmente **solo para el paso 1** (generar la migración inicial), a menos que ya la tengas generada en el repo.
 
 ## Paso 1 — Generar la migración inicial de EF Core (una sola vez)
 
@@ -45,9 +49,9 @@ dotnet ef migrations add InitialCreate \
 ```
 
 Esto genera los archivos de migración como código C# dentro del repo. Ya no necesitas
-volver a hacer esto salvo que cambies el modelo de datos (agregar una entidad, una
-propiedad, etc.) — en ese caso, generas una migración nueva con `dotnet ef migrations add <Nombre>`
-y la subes al repo igual que cualquier otro cambio de código.
+volver a hacer esto salvo que cambies el modelo de datos — en ese caso, generas una
+migración nueva con `dotnet ef migrations add <Nombre>` y la subes al repo igual que
+cualquier otro cambio de código.
 
 ## Paso 2 — Configurar variables de entorno
 
@@ -56,11 +60,18 @@ cp .env.example .env
 ```
 
 Edita `.env` y completa al menos:
-- `POSTGRES_PASSWORD`
-- `JWT_SECRET` (genera uno con `openssl rand -base64 48`, por ejemplo)
-- `API_BASE_URL` (en local, déjalo en `http://localhost:5100`; en un despliegue real, pon la URL pública de tu API)
+- **`NEXUS_DB_CONNECTION_STRING`** — la cadena de conexión completa a tu base de datos en la nube. En `.env.example` hay ejemplos concretos para Azure, AWS RDS, Supabase y Neon. La mayoría de proveedores administrados **exigen SSL** (`SSL Mode=Require`); si lo omites, la conexión probablemente falle.
+- **`JWT_SECRET`** (genera uno con `openssl rand -base64 48`, por ejemplo).
+- **`API_BASE_URL`** (en local, déjalo en `http://localhost:5100`; en un despliegue real, pon la URL pública de tu API).
 
 `.env` está en `.gitignore` — nunca se sube al repositorio.
+
+### ¿Tu base de datos en la nube no es accesible desde donde corres Docker?
+
+Si tu proveedor restringe el acceso por IP (whitelist), asegúrate de agregar la IP pública
+de la máquina/servidor donde corres `docker compose` a la lista de conexiones permitidas de
+tu proveedor de PostgreSQL. Esto es independiente de Docker — es una regla de firewall del
+lado del proveedor de la base de datos.
 
 ## Paso 3 — Construir y levantar los contenedores
 
@@ -70,8 +81,8 @@ docker compose up -d
 ```
 
 Con `RUN_MIGRATIONS_ON_STARTUP=true` (valor por defecto en `.env.example`), el contenedor
-`nexus.api` aplica las migraciones pendientes automáticamente en cada arranque — no necesitas
-correr `dotnet ef database update` a mano contra el contenedor.
+`nexus.api` aplica las migraciones pendientes automáticamente en cada arranque contra tu
+base de datos en la nube — no necesitas correr `dotnet ef database update` a mano.
 
 ## Paso 4 — Verificar que todo funciona
 
@@ -83,6 +94,20 @@ correr `dotnet ef database update` a mano contra el contenedor.
   docker compose logs -f nexus.presentation
   ```
 
+## ¿Necesitas un Postgres local de todos modos? (pruebas/desarrollo)
+
+Si en algún momento quieres probar contra un Postgres local (por ejemplo, para no tocar
+datos reales de la nube mientras desarrollas), hay un archivo de superposición **opcional**
+que agrega ese servicio sin modificar el `docker-compose.yml` principal:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local-db.yml up -d --build
+```
+
+Esto levanta un contenedor `postgres` adicional y hace que `nexus.api` se conecte a él en
+vez de a `NEXUS_DB_CONNECTION_STRING`. Para volver a apuntar a la nube, simplemente vuelve
+a usar `docker compose up -d` (sin el `-f` adicional).
+
 ## Comandos útiles
 
 ```bash
@@ -93,14 +118,8 @@ docker compose up -d nexus.api
 # Ver el estado de los contenedores
 docker compose ps
 
-# Apagar todo (conserva los datos de Postgres, guardados en el volumen nexus_postgres_data)
+# Apagar todo
 docker compose down
-
-# Apagar todo y BORRAR también los datos de Postgres
-docker compose down -v
-
-# Entrar a la base de datos
-docker compose exec postgres psql -U postgres -d NexusDB
 ```
 
 ## Decisiones de diseño / cosas a tener en cuenta
@@ -137,6 +156,9 @@ gestionado, Cloudflare, etc.) y que el tráfico *interno* hacia `nexus.api`/`nex
 viaje en HTTP plano dentro de tu red privada/Docker. Si despliegas esto directamente expuesto
 a internet sin un proxy TLS delante, los tokens JWT viajarían sin cifrar.
 
+La conexión a la base de datos en la nube sí va cifrada (`SSL Mode=Require` en la cadena de
+conexión), independientemente de esto.
+
 ### 4. Compresión Brotli/Gzip del build de Blazor
 Se publicó con `-p:BlazorEnableCompression=false` para simplificar el `nginx.conf` inicial
 (Nginx sirve los archivos sin comprimir; el `gzip on` de `nginx.conf` comprime al vuelo,
@@ -156,7 +178,14 @@ considera:
 - Desactivar `RUN_MIGRATIONS_ON_STARTUP` (ponerlo en `false`), y
 - Correr las migraciones como un paso separado del pipeline de despliegue (un job/contenedor
   que corre una sola vez, con `dotnet ef database update`, antes de desplegar la nueva versión
-  de `nexus.api`).
+  de `nexus.api`), apuntando a la misma `NEXUS_DB_CONNECTION_STRING`.
+
+### 6. Si dejas `NEXUS_DB_CONNECTION_STRING` vacío
+El `docker-compose.yml` principal no falla al analizar el archivo si `NEXUS_DB_CONNECTION_STRING`
+no está definida (a propósito, para que el overlay `docker-compose.local-db.yml` pueda
+sobrescribirla sin necesitar un valor "dummy" en `.env`). Si la dejas vacía **y no usas** el
+overlay local, el contenedor `nexus.api` arrancará pero fallará al conectar a la base de
+datos — revisa `docker compose logs nexus.api` para ver el error exacto de Npgsql.
 
 ## Próximos pasos sugeridos
 
@@ -164,6 +193,6 @@ considera:
   desplegar en un servidor/orquestador real en vez de solo `docker compose` local.
 - Agregar un `docker-compose.override.yml` o perfiles separados para desarrollo (con hot-reload
   vía `dotnet watch` montando el código como volumen) vs. producción (las imágenes ya construidas).
-- Healthchecks HTTP para `nexus.api` y `nexus.presentation` en el `docker-compose.yml` (hoy solo
-  `postgres` tiene healthcheck), para que `depends_on` espere a que el backend esté realmente
-  respondiendo, no solo a que el contenedor haya arrancado.
+- Healthchecks HTTP para `nexus.api` y `nexus.presentation` en el `docker-compose.yml` (hoy
+  ninguno tiene, ya que no depende de un Postgres local con healthcheck propio), para que
+  `depends_on` espere a que el backend esté realmente respondiendo.
