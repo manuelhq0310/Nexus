@@ -6,21 +6,21 @@ services:
     container_name: nexus-api
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_ENVIRONMENT: Development
       # Cadena de conexión completa a tu base de datos PostgreSQL en la nube
       # (Azure Database for PostgreSQL, AWS RDS, Supabase, Neon, Render, etc.).
       # Ver .env.example para el formato exacto. Si usas el overlay opcional
       # docker-compose.local-db.yml, este valor queda sobrescrito por ese archivo
       # y no necesitas definir NEXUS_DB_CONNECTION_STRING en tu .env.
-      ConnectionStrings__NexusDB: ${NEXUS_DB_CONNECTION_STRING:-}
-      JwtSettings__Secret: ${JWT_SECRET:?Debes definir JWT_SECRET en tu archivo .env (32+ caracteres)}
-      JwtSettings__Issuer: ${JWT_ISSUER:-Nexus.Api}
-      JwtSettings__Audience: ${JWT_AUDIENCE:-Nexus.Clients}
-      JwtSettings__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
+      ConnectionStrings__NexusDB: "Host=aws-0-us-west-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.qnwizbpkkpjenefootyi;Password=Fanalca2026;SSL Mode=Require;Trust Server Certificate=true"
+      JwtSettings__Secret: "CAMBIA_ESTA_LLAVE_POR_UNA_SECRETA_DE_AL_MENOS_32_CARACTERES"
+      JwtSettings__Issuer: "Nexus.Api"
+      JwtSettings__Audience: "Nexus.Clients"
+      JwtSettings__ExpiryMinutes: 60
       # Aplica migraciones de EF Core automáticamente al arrancar el contenedor.
       # Desactívalo (false) si prefieres correr `dotnet ef database update` tú mismo,
       # o si vas a correr varias réplicas de este contenedor a la vez (ver DOCKER.md).
-      RUN_MIGRATIONS_ON_STARTUP: ${RUN_MIGRATIONS_ON_STARTUP:-true}
+      RUN_MIGRATIONS_ON_STARTUP: false
     ports:
       - "5100:8080"
 
@@ -35,6 +35,6 @@ services:
     environment:
       # URL con la que el NAVEGADOR del usuario alcanza al backend (no el nombre
       # interno "nexus.api" de la red de Docker, que no es accesible desde fuera).
-      API_BASE_URL: ${API_BASE_URL:-http://localhost:5100}
+      API_BASE_URL: "http://localhost:5100"
     ports:
       - "5250:80"

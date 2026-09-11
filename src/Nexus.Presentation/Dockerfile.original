@@ -6,10 +6,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Instalar Python 3 (requerido para la compilación AOT de Blazor WASM)
-USER root
-RUN apt-get update && apt-get install -y python3 && ln -sf /usr/bin/python3 /usr/bin/python
-
 # El workload wasm-tools no viene preinstalado en la imagen del SDK.
 RUN dotnet workload install wasm-tools
 

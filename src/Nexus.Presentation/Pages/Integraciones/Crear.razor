@@ -41,7 +41,7 @@
                 <MudButton Variant="Variant.Outlined" Href="@($"/integraciones/{_integracionCreada?.Id}")">
                     Ver detalle de la integración
                 </MudButton>
-                <MudButton Variant="Text" Href="/integraciones">
+                <MudButton Variant="Variant.Text" Href="/integraciones">
                     Ir al listado
                 </MudButton>
             </div>
@@ -129,7 +129,7 @@
                 </MudGrid>
                 <div class="d-flex justify-end mt-3">
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
-                               Disabled="@(_agregandoConector || _conectoresDisponiblesParaAgregar.Count == 0)" OnClick="AgregarConectorAsync">
+                               Disabled="@(_agregandoConector || _conectoresDisponiblesParaAgregar.ToList().Count == 0)" OnClick="AgregarConectorAsync">
                         @if (_agregandoConector)
                         {
                             <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
