@@ -1,3 +1,4 @@
+using Nexus.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Nexus.Application.DTOs.Integraciones;
@@ -14,4 +15,8 @@ public class CrearIntegracionDto
 
     [MaxLength(255)]
     public string? Descripcion { get; set; }
+
+    public TipoIntegracion Tipo { get; set; }
+
+    public bool ConsultaGenerica { get; set; } = false;
 }

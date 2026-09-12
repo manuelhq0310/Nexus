@@ -16,6 +16,6 @@ public class IntgEmpresa : IntgBaseEntity
     // Navegación
     public ICollection<IntgEmpresaIntegracionConector> EmpresaIntegracionConectores { get; set; }
         = new List<IntgEmpresaIntegracionConector>();
-    public ICollection<IntgEmpresaConector> EmpresaConectores { get; set; } = new List<IntgEmpresaConector>();
+    public IntgEmpresaConector? EmpresaConector { get; set; }
     public ICollection<IntgAplicacionEmpresa> AplicacionEmpresas { get; set; } = new List<IntgAplicacionEmpresa>();
 }

@@ -27,6 +27,8 @@ public class NexusDbContext : DbContext
     public DbSet<IntgAplicacionIntegracion> IntgAplicacionIntegraciones => Set<IntgAplicacionIntegracion>();
     public DbSet<IntgAplicacionEmpresa> IntgAplicacionEmpresas => Set<IntgAplicacionEmpresa>();
 
+    public DbSet<UnoEConsultaConfig> UnoEConsultaConfigs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

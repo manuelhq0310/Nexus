@@ -16,9 +16,9 @@ public class IntgEmpresaConectorConfiguration : IEntityTypeConfiguration<IntgEmp
         builder.Property(ec => ec.Estado).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(ec => ec.Empresa)
-            .WithMany(e => e.EmpresaConectores)
-            .HasForeignKey(ec => ec.EmpresaId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .WithOne(e => e.EmpresaConector)
+            .HasForeignKey<IntgEmpresaConector>(ec => ec.EmpresaId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(ec => ec.Conector)
             .WithMany(c => c.EmpresaConectores)

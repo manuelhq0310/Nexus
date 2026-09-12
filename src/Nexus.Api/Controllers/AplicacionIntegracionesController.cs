@@ -50,8 +50,9 @@ public class AplicacionIntegracionesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Crear([FromBody] CrearAplicacionIntegracionDto dto)
     {
-        await _service.CrearAsync(dto);
-        return StatusCode(StatusCodes.Status201Created);
+        var creado = await _service.CrearAsync(dto);
+        return CreatedAtAction(nameof(ObtenerPorClaveCompuesta), 
+                new { aplicacionId = creado.AplicacionId, integracionId = creado.IntegracionId }, creado);
     }
 
     [HttpPatch("{aplicacionId:long}/{integracionId:long}/estado")]

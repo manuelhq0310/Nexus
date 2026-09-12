@@ -1,3 +1,5 @@
+using Nexus.Domain.Enums;
+
 namespace Nexus.Domain.Entities.Integraciones;
 
 /// <summary>
@@ -19,7 +21,9 @@ public class IntgIntegracion : IntgBaseEntity
     /// en el contrato de la API (no aparece en IntegracionDto). Se conserva para mantener el
     /// esquema fiel a la base de datos existente; valor por defecto 0.
     /// </summary>
-    public int Tipo { get; set; }
+    public TipoIntegracion Tipo { get; set; }
+
+    public bool ConsultaGenerica { get; set; }
 
     // Navegación
     public ICollection<IntgIntegracionConector> IntegracionConectores { get; set; }

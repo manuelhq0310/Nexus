@@ -10,4 +10,5 @@ public interface IAplicacionIntegracionRepository
     Task<IntgAplicacionIntegracion?> GetByCompositeKeyAsync(long aplicacionId, long integracionId, CancellationToken cancellationToken = default);
     Task AddAsync(IntgAplicacionIntegracion entity, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<IntgAplicacionIntegracion?> ObtenerPorCodigosAsync(string codigoAplicacion, string codigoIntegracion);
 }

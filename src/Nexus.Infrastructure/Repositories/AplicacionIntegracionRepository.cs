@@ -44,4 +44,17 @@ public class AplicacionIntegracionRepository : IAplicacionIntegracionRepository
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);
+
+    public async Task<IntgAplicacionIntegracion?> ObtenerPorCodigosAsync(string codigoAplicacion, string codigoIntegracion)
+    {
+        return await _context.IntgAplicacionIntegraciones
+            .AsNoTracking()
+            .Include(ai => ai.Aplicacion)
+            .ThenInclude(a => a.AplicacionConectores)
+            .Include(ai => ai.Integracion)
+            .ThenInclude(i => i.IntegracionConectores)
+            .FirstOrDefaultAsync(ai =>
+                ai.Aplicacion.CodigoApp == codigoAplicacion &&
+                ai.Integracion.CodigoAccion == codigoIntegracion);
+    }
 }

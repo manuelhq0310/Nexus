@@ -1,12 +1,10 @@
 using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nexus.Api.Middleware;
 using Nexus.Infrastructure;
-using Nexus.Infrastructure.Persistence;
 using Nexus.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,6 +84,11 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddHttpClient("ConectoresClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // ---------------------------------------------------------------------------
 // 3. Swagger / OpenAPI (con soporte de autenticación Bearer)
@@ -170,23 +173,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// ---------------------------------------------------------------------------
-// 6. Migración automática al iniciar (opcional, pensada para contenedores)
-// ---------------------------------------------------------------------------
-// Activar solo estableciendo RUN_MIGRATIONS_ON_STARTUP=true (por ejemplo, en
-// docker-compose). Por defecto está desactivada: en desarrollo local se sigue
-// prefiriendo `dotnet ef database update` de forma explícita.
-if (builder.Configuration.GetValue<bool>("RUN_MIGRATIONS_ON_STARTUP"))
-{
-    using var scope = app.Services.CreateScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-    var db = scope.ServiceProvider.GetRequiredService<NexusDbContext>();
-
-    logger.LogInformation("RUN_MIGRATIONS_ON_STARTUP=true: aplicando migraciones pendientes...");
-    db.Database.Migrate();
-    logger.LogInformation("Migraciones aplicadas correctamente.");
-}
 
 app.Run();
 

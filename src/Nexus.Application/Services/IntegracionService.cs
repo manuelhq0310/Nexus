@@ -3,6 +3,7 @@ using Nexus.Application.DTOs.Integraciones;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Domain.Entities.Integraciones;
+using Nexus.Domain.Enums;
 
 namespace Nexus.Application.Services;
 
@@ -42,7 +43,9 @@ public class IntegracionService : IIntegracionService
         {
             CodigoAccion = codigo,
             Nombre = dto.Nombre,
-            Descripcion = dto.Descripcion
+            Descripcion = dto.Descripcion,
+            Tipo = dto.Tipo,
+            ConsultaGenerica = dto.ConsultaGenerica
         };
 
         await _repository.AddAsync(integracion);
@@ -60,6 +63,8 @@ public class IntegracionService : IIntegracionService
         // se ignora cualquier cambio que llegue en el DTO para ese campo.
         integracion.Nombre = dto.Nombre;
         integracion.Descripcion = dto.Descripcion;
+        integracion.Tipo = dto.Tipo;
+        integracion.ConsultaGenerica = dto.ConsultaGenerica;
         integracion.UpdatedAt = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync();
@@ -83,6 +88,8 @@ public class IntegracionService : IIntegracionService
         CodigoAccion = integracion.CodigoAccion,
         Nombre = integracion.Nombre,
         Descripcion = integracion.Descripcion,
+        Tipo = integracion.Tipo,
+        ConsultaGenerica = integracion.ConsultaGenerica,
         Estado = integracion.Estado
     };
 }

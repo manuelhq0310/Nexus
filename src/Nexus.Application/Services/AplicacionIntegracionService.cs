@@ -46,7 +46,7 @@ public class AplicacionIntegracionService : IAplicacionIntegracionService
         return entity is null ? null : ToDto(entity);
     }
 
-    public async Task CrearAsync(CrearAplicacionIntegracionDto dto)
+    public async Task<AplicacionIntegracionDto> CrearAsync(CrearAplicacionIntegracionDto dto)
     {
         if (await _aplicacionRepository.GetByIdAsync(dto.AplicacionId) is null)
         {
@@ -71,6 +71,10 @@ public class AplicacionIntegracionService : IAplicacionIntegracionService
 
         await _repository.AddAsync(entity);
         await _repository.SaveChangesAsync();
+
+        var creado = await _repository.GetByCompositeKeyAsync(entity.AplicacionId, entity.IntegracionId)
+            ?? throw new InvalidOperationException("No fue posible recuperar la relación recién creada.");
+        return ToDto(creado);
     }
 
     public async Task<bool> CambiarEstadoAsync(long aplicacionId, long integracionId, bool activo)

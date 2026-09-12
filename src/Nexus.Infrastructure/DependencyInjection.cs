@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Application.Services;
+using Nexus.Domain.Interfaces;
+using Nexus.Infrastructure.Messaging;
 using Nexus.Infrastructure.Persistence;
 using Nexus.Infrastructure.Repositories;
 using Nexus.Infrastructure.Security;
@@ -39,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IAplicacionEmpresaRepository, AplicacionEmpresaRepository>();
         services.AddScoped<IAplicacionConectorRepository, AplicacionConectorRepository>();
         services.AddScoped<IEmpresaConectorRepository, EmpresaConectorRepository>();
+        services.AddScoped<IUnoEConsultaConfigRepository, UnoEConsultaConfigRepository>();
 
         // Seguridad
         services.AddScoped<IPasswordHasher, PasswordHasher>();
@@ -56,7 +59,10 @@ public static class DependencyInjection
         services.AddScoped<IAplicacionIntegracionService, AplicacionIntegracionService>();
         services.AddScoped<IAplicacionEmpresaService, AplicacionEmpresaService>();
         services.AddScoped<IAplicacionConectorService, AplicacionConectorService>();
-        services.AddScoped<IEmpresaConectorService, EmpresaConectorService>();
+        services.AddScoped<IEmpresaConectorService, EmpresaConectorService>();        
+        services.AddScoped<IIntegracionRouterService, IntegracionRouterService>();
+        services.AddScoped<IMessageBrokerPublisher, RabbitMqMessageBrokerPublisher>();
+        services.AddScoped<IUnoEConsultaService, UnoEConsultaService>();
 
         return services;
     }
