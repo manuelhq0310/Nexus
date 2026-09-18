@@ -3,7 +3,7 @@
     public record EjecutarIntegracionRequest(
     string CodigoAplicacion,
     string CodigoIntegracion,
-    string CodigoEmpresa,
+    int CodigoEmpresa,
     dynamic Payload
     );
 

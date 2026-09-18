@@ -48,7 +48,7 @@ public class AplicacionEmpresaRepository : IAplicacionEmpresaRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);
 
-    public async Task<IntgAplicacionEmpresa?> ObtenerConConectorPorCodigosAsync(string codigoAplicacion, string codigoEmpresa)
+    public async Task<IntgAplicacionEmpresa?> ObtenerConConectorPorCodigosAsync(string codigoAplicacion, int codigoEmpresa)
     {
         return await _context.IntgAplicacionEmpresas
             .AsNoTracking()
@@ -58,6 +58,6 @@ public class AplicacionEmpresaRepository : IAplicacionEmpresaRepository
             .ThenInclude(ec => ec.Conector)
             .FirstOrDefaultAsync(ae =>
                 ae.Aplicacion.CodigoApp == codigoAplicacion &&
-                ae.Empresa.Id.ToString() == codigoEmpresa);
+                ae.Empresa.CodigoEmpresa == codigoEmpresa);
     }
 }

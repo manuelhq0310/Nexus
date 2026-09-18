@@ -13,7 +13,7 @@
     public class ConsultaGeneralRequest
     {
         public string? NombreConexion { get; set; }
-        public string? IdCia { get; set; }
+        public int IdCia { get; set; }
         public string? IdProveedor { get; set; }
         public string? IdConsulta { get; set; }
         public string? Usuario { get; set; }

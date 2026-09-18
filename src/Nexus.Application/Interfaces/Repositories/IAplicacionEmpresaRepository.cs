@@ -11,5 +11,5 @@ public interface IAplicacionEmpresaRepository
     Task<bool> ExistsAsync(long aplicacionId, long empresaId, CancellationToken cancellationToken = default);
     Task AddAsync(IntgAplicacionEmpresa entity, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
-    Task<IntgAplicacionEmpresa?> ObtenerConConectorPorCodigosAsync(string codigoAplicacion, string codigoEmpresa);
+    Task<IntgAplicacionEmpresa?> ObtenerConConectorPorCodigosAsync(string codigoAplicacion, int codigoEmpresa);
 }
