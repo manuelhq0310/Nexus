@@ -19,13 +19,6 @@ public class EmpresaApiService : ApiServiceBase
         return await ReadOrThrowNullableAsync<EmpresaDto>(response);
     }
 
-    public async Task<EmpresaDto?> ObtenerPorIdentificacionAsync(string tipoIdentificacion, string numeroIdentificacion)
-    {
-        var response = await Http.GetAsync(
-            $"api/v1/Empresas/buscar?tipoIdentificacion={Uri.EscapeDataString(tipoIdentificacion)}&numeroIdentificacion={Uri.EscapeDataString(numeroIdentificacion)}");
-        return await ReadOrThrowNullableAsync<EmpresaDto>(response);
-    }
-
     public async Task<EmpresaDto> CrearAsync(CrearEmpresaDto dto)
     {
         var response = await Http.PostAsJsonAsync("api/v1/Empresas", dto);

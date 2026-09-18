@@ -21,10 +21,8 @@
             <EditForm Model="_model" OnValidSubmit="GuardarDatosAsync">
                 <DataAnnotationsValidator />
 
-                <MudTextField T="string" Label="Tipo de identificación" @bind-Value="_model.TipoIdentificacion" For="@(() => _model.TipoIdentificacion)"
-                              Variant="Variant.Outlined" Class="mb-3" HelperText='Ej: "NIT", "RUC", "CEDULA"' Required="true" />
-                <MudTextField T="string" Label="Número de identificación" @bind-Value="_model.NumeroIdentificacion" For="@(() => _model.NumeroIdentificacion)"
-                              Variant="Variant.Outlined" Class="mb-3" HelperText='Ej: "900.123.456-1"' Required="true" />
+                <MudNumericField T="int?" Label="Código de empresa" @bind-Value="_model.CodigoEmpresa" For="@(() => _model.CodigoEmpresa)"
+                                 Variant="Variant.Outlined" Class="mb-3" HelperText="Identificador numérico único de la empresa." Required="true" Min="1" />
                 <MudTextField T="string" Label="Razón social" @bind-Value="_model.NombreRazonSocial" For="@(() => _model.NombreRazonSocial)"
                               Variant="Variant.Outlined" Class="mb-2" Required="true" />
 
@@ -125,8 +123,7 @@
     {
         if (Existente is not null)
         {
-            _model.TipoIdentificacion = Existente.TipoIdentificacion;
-            _model.NumeroIdentificacion = Existente.NumeroIdentificacion;
+            _model.CodigoEmpresa = Existente.CodigoEmpresa;
             _model.NombreRazonSocial = Existente.NombreRazonSocial;
         }
         else
@@ -144,6 +141,12 @@
 
     private async Task GuardarDatosAsync()
     {
+        if (_model.CodigoEmpresa is null)
+        {
+            _error = "El código de empresa es obligatorio.";
+            return;
+        }
+
         _guardando = true;
         _error = null;
         try
@@ -152,8 +155,7 @@
             {
                 await EmpresaApi.ActualizarAsync(Existente!.Id, new ActualizarEmpresaDto
                 {
-                    TipoIdentificacion = _model.TipoIdentificacion,
-                    NumeroIdentificacion = _model.NumeroIdentificacion,
+                    CodigoEmpresa = _model.CodigoEmpresa.Value,
                     NombreRazonSocial = _model.NombreRazonSocial
                 });
                 MudDialog.Close(DialogResult.Ok(true));
@@ -162,8 +164,7 @@
 
             var nuevaEmpresa = await EmpresaApi.CrearAsync(new CrearEmpresaDto
             {
-                TipoIdentificacion = _model.TipoIdentificacion,
-                NumeroIdentificacion = _model.NumeroIdentificacion,
+                CodigoEmpresa = _model.CodigoEmpresa.Value,
                 NombreRazonSocial = _model.NombreRazonSocial
             });
             _empresaCreadaId = nuevaEmpresa.Id;
@@ -220,11 +221,10 @@
 
     private class FormModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El tipo de identificación es obligatorio.")]
-        public string TipoIdentificacion { get; set; } = string.Empty;
-
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El número de identificación es obligatorio.")]
-        public string NumeroIdentificacion { get; set; } = string.Empty;
+        // Validación manual (no [Required] de DataAnnotations) para un int? nullable:
+        // se verifica explícitamente en GuardarDatosAsync, mismo patrón usado en otros
+        // formularios de este proyecto para campos que no son de tipo string.
+        public int? CodigoEmpresa { get; set; }
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La razón social es obligatoria.")]
         public string NombreRazonSocial { get; set; } = string.Empty;

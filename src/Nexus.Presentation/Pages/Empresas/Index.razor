@@ -22,14 +22,14 @@
 <MudPaper Elevation="2" Class="pa-2">
     <div class="d-flex align-center gap-4 px-2 pt-2 flex-wrap">
         <MudSwitch T="bool" @bind-Value="_soloActivas" Color="Color.Primary" Label="Solo activas" @bind-Value:after="CargarAsync" />
-        <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por nombre o identificación…" Immediate="true"
+        <MudTextField T="string" @bind-Value="_filtro" Placeholder="Buscar por nombre o código de empresa…" Immediate="true"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="ml-auto" Style="max-width:320px;" />
     </div>
 
     <MudTable Items="@_empresasFiltradas" Loading="_cargando" Hover="true" Class="mt-2">
         <HeaderContent>
             <MudTh>Razón social</MudTh>
-            <MudTh>Identificación</MudTh>
+            <MudTh>Código</MudTh>
             <MudTh>Estado</MudTh>
             <MudTh Style="width:140px;">Acciones</MudTh>
         </HeaderContent>
@@ -37,7 +37,7 @@
             <MudTd DataLabel="Razón social">
                 <MudLink Href="@($"/empresas/{context.Id}")">@context.NombreRazonSocial</MudLink>
             </MudTd>
-            <MudTd DataLabel="Identificación">@context.TipoIdentificacion @context.NumeroIdentificacion</MudTd>
+            <MudTd DataLabel="Código"><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.CodigoEmpresa</MudChip></MudTd>
             <MudTd DataLabel="Estado">
                 <MudChip T="string" Size="Size.Small" Color="@(context.Estado ? Color.Success : Color.Default)">
                     @(context.Estado ? "Activa" : "Inactiva")
@@ -81,7 +81,7 @@
         ? _empresas
         : _empresas.Where(e =>
             e.NombreRazonSocial.Contains(_filtro, StringComparison.OrdinalIgnoreCase) ||
-            e.NumeroIdentificacion.Contains(_filtro, StringComparison.OrdinalIgnoreCase));
+            e.CodigoEmpresa.ToString().Contains(_filtro, StringComparison.OrdinalIgnoreCase));
 
     protected override Task OnInitializedAsync() => CargarAsync();
 
