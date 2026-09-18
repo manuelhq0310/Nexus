@@ -1,9 +1,22 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 
+<div class="nexus-auth-container">
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+</div>
+
 @code {
-    protected override void OnInitialized()
+    // La redirección se dispara en OnAfterRenderAsync (NO en OnInitialized/OnInitializedAsync).
+    // Llamar a NavigateTo durante la inicialización, en el primer render de la app, puede
+    // perderse silenciosamente en Blazor WebAssembly: el interop de JS que respalda a
+    // NavigationManager (history.pushState) no está garantizado como "listo" hasta después
+    // de que el componente ya se adjuntó al DOM. Ese era el motivo por el que la página se
+    // quedaba en blanco en vez de redirigir a /login.
+    protected override void OnAfterRender(bool firstRender)
     {
-        var returnUrl = Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery);
-        Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
+        if (firstRender)
+        {
+            var returnUrl = Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery);
+            Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
+        }
     }
 }

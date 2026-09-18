@@ -15,6 +15,13 @@
         <EditForm Model="_model" OnValidSubmit="IniciarSesionAsync">
             <DataAnnotationsValidator />
 
+            @if (SesionVencida)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+                    Tu sesión expiró. Inicia sesión nuevamente para continuar.
+                </MudAlert>
+            }
+
             <MudTextField T="string" Label="Correo electrónico" @bind-Value="_model.Email"
                           Variant="Variant.Outlined" Class="mb-4" InputType="InputType.Email"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
@@ -46,8 +53,13 @@
 </div>
 
 @code {
+    [Parameter]
     [SupplyParameterFromQuery]
     public string? ReturnUrl { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "sesionVencida")]
+    public bool SesionVencida { get; set; }
 
     private readonly LoginModel _model = new();
     private bool _cargando;
