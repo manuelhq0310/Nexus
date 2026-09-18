@@ -17,6 +17,11 @@ services:
       JwtSettings__Issuer: "Nexus.Api"
       JwtSettings__Audience: "Nexus.Clients"
       JwtSettings__ExpiryMinutes: 60
+      RabbitMQ__Host: "172.30.2.203"
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: "girsys"
+      RabbitMQ__Password: "Girsys2024++"
+      RabbitMQ__VirtualHost: "/"
       # Aplica migraciones de EF Core automáticamente al arrancar el contenedor.
       # Desactívalo (false) si prefieres correr `dotnet ef database update` tú mismo,
       # o si vas a correr varias réplicas de este contenedor a la vez (ver DOCKER.md).
