@@ -23,23 +23,17 @@ public class EmpresaService : IEmpresaService
         return empresa is null ? null : ToDto(empresa);
     }
 
-    public async Task<EmpresaDto?> ObtenerPorIdentificacionAsync(string tipoIdentificacion, string numeroIdentificacion)
-    {
-        var empresa = await _repository.GetByIdentificacionAsync(tipoIdentificacion, numeroIdentificacion);
-        return empresa is null ? null : ToDto(empresa);
-    }
 
     public async Task<EmpresaDto> CrearAsync(CrearEmpresaDto dto)
     {
-        if (await _repository.ExistsByIdentificacionAsync(dto.TipoIdentificacion, dto.NumeroIdentificacion))
+        if (await _repository.ExistsByCodigoAsync(dto.CodigoEmpresa))
         {
-            throw new BadRequestException("Ya existe una empresa registrada con ese tipo y número de identificación.");
+            throw new BadRequestException("Ya existe una empresa registrada con ese código.");
         }
 
         var empresa = new IntgEmpresa
         {
-            TipoIdentificacion = dto.TipoIdentificacion,
-            NumeroIdentificacion = dto.NumeroIdentificacion,
+            CodigoEmpresa = dto.CodigoEmpresa,
             NombreRazonSocial = dto.NombreRazonSocial
         };
 
@@ -54,13 +48,12 @@ public class EmpresaService : IEmpresaService
         var empresa = await _repository.GetByIdAsync(id);
         if (empresa is null) return false;
 
-        if (await _repository.ExistsByIdentificacionAsync(dto.TipoIdentificacion, dto.NumeroIdentificacion, excludeId: id))
+        if (await _repository.ExistsByCodigoAsync(dto.CodigoEmpresa, excludeId: id))
         {
             throw new BadRequestException("Ya existe otra empresa registrada con ese tipo y número de identificación.");
         }
 
-        empresa.TipoIdentificacion = dto.TipoIdentificacion;
-        empresa.NumeroIdentificacion = dto.NumeroIdentificacion;
+        empresa.CodigoEmpresa = dto.CodigoEmpresa;
         empresa.NombreRazonSocial = dto.NombreRazonSocial;
         empresa.UpdatedAt = DateTime.UtcNow;
 
@@ -82,8 +75,7 @@ public class EmpresaService : IEmpresaService
     private static EmpresaDto ToDto(IntgEmpresa empresa) => new()
     {
         Id = empresa.Id,
-        TipoIdentificacion = empresa.TipoIdentificacion,
-        NumeroIdentificacion = empresa.NumeroIdentificacion,
+        CodigoEmpresa = empresa.CodigoEmpresa,
         NombreRazonSocial = empresa.NombreRazonSocial,
         Estado = empresa.Estado
     };

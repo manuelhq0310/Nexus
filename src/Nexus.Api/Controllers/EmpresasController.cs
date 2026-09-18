@@ -21,15 +21,6 @@ public class EmpresasController : ControllerBase
     public async Task<IActionResult> ObtenerTodas([FromQuery] bool soloActivas = true) =>
         Ok(await _service.ObtenerTodasAsync(soloActivas));
 
-    [HttpGet("buscar")]
-    [ProducesResponseType(typeof(EmpresaDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Buscar([FromQuery] string tipoIdentificacion, [FromQuery] string numeroIdentificacion)
-    {
-        var empresa = await _service.ObtenerPorIdentificacionAsync(tipoIdentificacion, numeroIdentificacion);
-        return empresa is null ? NotFound() : Ok(empresa);
-    }
-
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(EmpresaDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

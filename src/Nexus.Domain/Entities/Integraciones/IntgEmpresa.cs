@@ -5,11 +5,7 @@ namespace Nexus.Domain.Entities.Integraciones;
 /// </summary>
 public class IntgEmpresa : IntgBaseEntity
 {
-    /// <summary>Ej: "NIT", "RUC", "CEDULA".</summary>
-    public string TipoIdentificacion { get; set; } = string.Empty;
-
-    /// <summary>Ej: "900.123.456-1".</summary>
-    public string NumeroIdentificacion { get; set; } = string.Empty;
+    public int CodigoEmpresa { get; set; }
 
     public string NombreRazonSocial { get; set; } = string.Empty;
 

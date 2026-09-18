@@ -20,15 +20,10 @@ public class EmpresaRepository : IEmpresaRepository
     public async Task<IntgEmpresa?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
         await _context.IntgEmpresas.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
-    public async Task<IntgEmpresa?> GetByIdentificacionAsync(string tipoIdentificacion, string numeroIdentificacion, CancellationToken cancellationToken = default) =>
-        await _context.IntgEmpresas.FirstOrDefaultAsync(
-            e => e.TipoIdentificacion == tipoIdentificacion && e.NumeroIdentificacion == numeroIdentificacion,
-            cancellationToken);
-
-    public async Task<bool> ExistsByIdentificacionAsync(string tipoIdentificacion, string numeroIdentificacion, long? excludeId = null, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsByCodigoAsync(int codigoEmpresa, long? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.IntgEmpresas.Where(
-            e => e.TipoIdentificacion == tipoIdentificacion && e.NumeroIdentificacion == numeroIdentificacion);
+            e => e.CodigoEmpresa == codigoEmpresa);
         if (excludeId.HasValue) query = query.Where(e => e.Id != excludeId.Value);
         return await query.AnyAsync(cancellationToken);
     }

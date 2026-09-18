@@ -13,13 +13,8 @@ public class IntgEmpresaConfiguration : IEntityTypeConfiguration<IntgEmpresa>
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id).UseIdentityByDefaultColumn();
 
-        builder.Property(e => e.TipoIdentificacion)
-            .IsRequired()
-            .HasMaxLength(10);
-
-        builder.Property(e => e.NumeroIdentificacion)
-            .IsRequired()
-            .HasMaxLength(20);
+        builder.Property(e => e.CodigoEmpresa)
+            .IsRequired();
 
         builder.Property(e => e.NombreRazonSocial)
             .IsRequired()
@@ -31,8 +26,8 @@ public class IntgEmpresaConfiguration : IEntityTypeConfiguration<IntgEmpresa>
 
         builder.Property(e => e.CreatedAt).IsRequired();
 
-        // Una empresa se identifica de forma única por tipo + número de identificación.
-        builder.HasIndex(e => new { e.TipoIdentificacion, e.NumeroIdentificacion })
+        // Una empresa se identifica de forma única por su codigoEmpresa.
+        builder.HasIndex(e => e.CodigoEmpresa)
             .IsUnique();
     }
 }
