@@ -17,6 +17,24 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
     ?? throw new InvalidOperationException("Falta configurar 'ApiBaseUrl' en wwwroot/appsettings.json");
 
+// Validación temprana y explícita: un valor mal configurado (por ejemplo, el nombre
+// interno de un servicio de Docker Compose como "nexus_api", sin esquema ni puerto)
+// hace que "new Uri(apiBaseUrl)" falle más abajo con un UriFormatException genérico,
+// en medio de un ciclo de render de Blazor — un error muy difícil de diagnosticar
+// desde la consola del navegador. Se valida aquí, con un mensaje que dice exactamente
+// qué está mal y cómo corregirlo.
+if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var parsedApiBaseUrl) ||
+    (parsedApiBaseUrl.Scheme != Uri.UriSchemeHttp && parsedApiBaseUrl.Scheme != Uri.UriSchemeHttps))
+{
+    throw new InvalidOperationException(
+        $"'ApiBaseUrl' = \"{apiBaseUrl}\" no es una URL http(s) absoluta válida. " +
+        "Debe incluir el esquema y ser una dirección alcanzable desde el NAVEGADOR del usuario " +
+        "(NO el nombre interno de un servicio de Docker Compose, como \"nexus_api\", que solo " +
+        "resuelven los contenedores entre sí). Ejemplo correcto: \"http://172.30.2.203:32789\". " +
+        "Si corres esto vía Docker, revisa la variable de entorno API_BASE_URL del contenedor " +
+        "nexus.presentation (ver DOCKER.md).");
+}
+
 // ---------------------------------------------------------------------------
 // MudBlazor
 // ---------------------------------------------------------------------------
@@ -36,7 +54,7 @@ builder.Services.AddTransient<JwtAuthorizationMessageHandler>();
 // ---------------------------------------------------------------------------
 builder.Services.AddHttpClient("NexusApi", client =>
     {
-        client.BaseAddress = new Uri(apiBaseUrl);
+        client.BaseAddress = parsedApiBaseUrl;
     })
     .AddHttpMessageHandler<JwtAuthorizationMessageHandler>();
 
