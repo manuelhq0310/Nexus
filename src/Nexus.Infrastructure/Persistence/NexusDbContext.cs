@@ -19,6 +19,7 @@ public class NexusDbContext : DbContext
     public DbSet<IntgIntegracion> IntgIntegraciones => Set<IntgIntegracion>();
     public DbSet<IntgIntegracionConector> IntgIntegracionConectores => Set<IntgIntegracionConector>();
     public DbSet<IntgEmpresaIntegracionConector> IntgEmpresaIntegracionConectores => Set<IntgEmpresaIntegracionConector>();
+    public DbSet<IntgRabbitmqRequest> IntgRabbitmqRequests => Set<IntgRabbitmqRequest>();
 
     // Módulo de Aplicaciones
     public DbSet<IntgAplicacion> IntgAplicaciones => Set<IntgAplicacion>();

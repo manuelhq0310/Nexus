@@ -15,19 +15,22 @@ namespace Nexus.Application.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMessageBrokerPublisher _messagePublisher;
         private readonly IUnoEConsultaService _unoEConsultaService;
+        private readonly IIntgRabbitmqRequestRepository _rabbitmqRequestRepo;
 
         public IntegracionRouterService(
             IAplicacionEmpresaRepository aplicacionEmpresaRepository,
             IAplicacionIntegracionRepository aplicacionIntegracionRepository,
             IHttpClientFactory httpClientFactory,
             IMessageBrokerPublisher messagePublisher,
-            IUnoEConsultaService unoEConsultaService)
+            IUnoEConsultaService unoEConsultaService,
+            IIntgRabbitmqRequestRepository rabbitmqRequestRepo)
         {
             _aplicacionEmpresaRepository = aplicacionEmpresaRepository;
             _aplicacionIntegracionRepository = aplicacionIntegracionRepository;
             _httpClientFactory = httpClientFactory;
             _messagePublisher = messagePublisher;
             _unoEConsultaService = unoEConsultaService;
+            _rabbitmqRequestRepo = rabbitmqRequestRepo;
         }
 
         public async Task<EjecutarIntegracionResponse> ProcesarIntegracionAsync(EjecutarIntegracionRequest request)
@@ -153,13 +156,29 @@ namespace Nexus.Application.Services
                 routingKey: nombreCola,
                 message: new
                 {
-                    TransaccionId = transaccionId,
+                    RequestId = transaccionId,
                     request.CodigoAplicacion,
                     request.CodigoEmpresa,
                     request.CodigoIntegracion,
                     request.Payload
                 }
             );
+
+            // Crear el registro inicial de la traza (Estado: Pendiente)
+            var rabbitRequest = new IntgRabbitmqRequest
+            {
+                RabbitmqRequestId = transaccionId,
+                CodigoAccionIntegracion = request.CodigoIntegracion,
+                CodigoEmpresa = request.CodigoEmpresa,
+                ColaRabbitMqDestino = nombreCola,
+                Estado = EstadoRabbitMqRequest.Pendiente,
+                Payload = request.Payload.ToString(),
+                Intentos = 0,
+                FechaCreacion = DateTime.UtcNow,
+                Usuario = "Default"
+            };
+
+            await _rabbitmqRequestRepo.AddAsync(rabbitRequest);
 
             return new EjecutarIntegracionResponse(
                 true,

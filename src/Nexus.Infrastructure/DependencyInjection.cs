@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<IAplicacionConectorRepository, AplicacionConectorRepository>();
         services.AddScoped<IEmpresaConectorRepository, EmpresaConectorRepository>();
         services.AddScoped<IUnoEConsultaConfigRepository, UnoEConsultaConfigRepository>();
+        services.AddScoped<IIntgRabbitmqRequestRepository, IntgRabbitmqRequestRepository>();
 
         // Seguridad
         services.AddScoped<IPasswordHasher, PasswordHasher>();
