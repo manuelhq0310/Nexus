@@ -1,11 +1,13 @@
-using System.Reflection;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Nexus.Api.Middleware;
 using Nexus.Infrastructure;
+using Nexus.Infrastructure.Persistence;
 using Nexus.Infrastructure.Security;
+using System.Reflection;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -163,6 +165,34 @@ if (app.Environment.IsDevelopment())
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "Nexus API v1");
         options.RoutePrefix = "swagger";
     });
+}
+
+// =========================================================
+// APLICAR MIGRACIONES AUTOMÁTICAS AL INICIAR
+// =========================================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<NexusDbContext>();
+
+        // Verifica si hay migraciones pendientes y las aplica
+        if (context.Database.GetPendingMigrations().Any())
+        {
+            app.Logger.LogInformation("Aplicando migraciones pendientes en la base de datos...");
+            context.Database.Migrate();
+            app.Logger.LogInformation("Migraciones aplicadas con éxito.");
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un error al ejecutar las migraciones de la base de datos.");
+
+        // Opcional: Detener la aplicación si la migración falla
+        throw;
+    }
 }
 
 app.UseHttpsRedirection();

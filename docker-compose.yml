@@ -12,8 +12,8 @@ services:
       # Ver .env.example para el formato exacto. Si usas el overlay opcional
       # docker-compose.local-db.yml, este valor queda sobrescrito por ese archivo
       # y no necesitas definir NEXUS_DB_CONNECTION_STRING en tu .env.
-      ConnectionStrings__NexusDB: "Host=aws-0-us-west-2.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.qnwizbpkkpjenefootyi;Password=Fanalca2026;SSL Mode=Require;Trust Server Certificate=true"
-      JwtSettings__Secret: "CAMBIA_ESTA_LLAVE_POR_UNA_SECRETA_DE_AL_MENOS_32_CARACTERES"
+      ConnectionStrings__NexusDB: "Host=postgres;Port=5432;Database=postgres;Username=postgres;Password=Fanalca2026*"
+      JwtSettings__Secret: "kUb0z1CdcrsnHixRBsNbqS2Df6L5ayJH"
       JwtSettings__Issuer: "Nexus.Api"
       JwtSettings__Audience: "Nexus.Clients"
       JwtSettings__ExpiryMinutes: 60
@@ -25,7 +25,7 @@ services:
       # Aplica migraciones de EF Core automáticamente al arrancar el contenedor.
       # Desactívalo (false) si prefieres correr `dotnet ef database update` tú mismo,
       # o si vas a correr varias réplicas de este contenedor a la vez (ver DOCKER.md).
-      RUN_MIGRATIONS_ON_STARTUP: false
+      RUN_MIGRATIONS_ON_STARTUP: true
     ports:
       - "5100:8080"
 
@@ -43,3 +43,24 @@ services:
       API_BASE_URL: "http://localhost:5100"
     ports:
       - "5250:80"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: integraciones-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "Fanalca2026*"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
