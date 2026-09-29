@@ -55,6 +55,20 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Endpoint para autenticación M2M (Machine-to-Machine).
+    /// Valida ClientId y ClientSecret para emitir un JWT Bearer Token.
+    /// </summary>
+    [HttpPost("obtenerTokenAplicacion")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AutenticarAplicacionResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ObtenerTokenAplicacion([FromBody] AutenticarAplicacionRequestDto dto)
+    {
+        var result = await _authService.AutenticarAplicacionAsync(dto);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Devuelve la información del usuario autenticado a partir del token JWT.
     /// Sirve como ejemplo de endpoint privado protegido con [Authorize].
     /// </summary>

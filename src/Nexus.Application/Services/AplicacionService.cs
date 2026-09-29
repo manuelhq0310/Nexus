@@ -110,7 +110,7 @@ public class AplicacionService : IAplicacionService
 
         if (app == null || app.OnboardingToken != onboardingToken || app.OnboardingCompletado || app.FechaExpiracionOnboarding < DateTime.UtcNow)
         {
-            throw new InvalidOperationException("El token de onboarding es inválido, ya fue utilizado o ha expirado.");
+            throw new UnauthorizedAppException("El token de onboarding es inválido, ya fue utilizado o ha expirado.");
         }
 
         var plainClientSecret = SecretGeneratorHelper.GenerarClientSecret();

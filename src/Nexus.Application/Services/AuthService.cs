@@ -1,5 +1,6 @@
 using Nexus.Application.Common.Exceptions;
 using Nexus.Application.DTOs.Auth;
+using Nexus.Application.Helpers;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Domain.Entities;
@@ -14,15 +15,18 @@ public class AuthService : IAuthService
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtService _jwtService;
+    private readonly IAplicacionRepository _aplicacionRepository;
 
     public AuthService(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
-        IJwtService jwtService)
+        IJwtService jwtService,
+        IAplicacionRepository aplicacionRepository)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _jwtService = jwtService;
+        _aplicacionRepository = aplicacionRepository;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request, CancellationToken cancellationToken = default)
@@ -73,7 +77,7 @@ public class AuthService : IAuthService
 
     private AuthResponseDto BuildAuthResponse(User user)
     {
-        var (token, expiresAt) = _jwtService.GenerateToken(user);
+        var (token, expiresAt) = _jwtService.GenerarToken(user);
 
         return new AuthResponseDto
         {
@@ -87,5 +91,37 @@ public class AuthService : IAuthService
                 Role = user.Role
             }
         };
+    }
+
+    public async Task<AutenticarAplicacionResponseDto> AutenticarAplicacionAsync(AutenticarAplicacionRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.CodigoAplicacion) ||
+        string.IsNullOrWhiteSpace(request.ClientId) ||
+        string.IsNullOrWhiteSpace(request.ClientSecret))
+        {
+            throw new ArgumentException("El código de aplicación, ClientId y ClientSecret son obligatorios.");
+        }
+
+        // 1. Buscar la aplicación por CodigoAplicacion en PostgreSQL
+        var app = await _aplicacionRepository.GetByCodigoAsync(request.CodigoAplicacion);
+
+        // 2. Validar existencia, coincidencia exacta de ClientId y estados requeridos
+        if (app == null ||
+            !string.Equals(app.ClientId, request.ClientId, StringComparison.Ordinal) ||
+            !app.Estado ||
+            !app.OnboardingCompletado)
+        {
+            throw new UnauthorizedAppException("Credenciales inválidas o la aplicación no está autorizada.");
+        }
+
+        // 3. Validar el Hash del ClientSecret en tiempo constante (FixedTimeEquals)
+        if (string.IsNullOrWhiteSpace(app.ClientSecretHash) ||
+            !SecretGeneratorHelper.ValidarSecret(request.ClientSecret, app.ClientSecretHash))
+        {
+            throw new UnauthorizedAppException("Credenciales inválidas.");
+        }
+
+        // 4. Generar y retornar el token JWT
+        return _jwtService.GenerarJwtTokenAplicacion(app.ClientId!, app.CodigoApp, app.Nombre);
     }
 }

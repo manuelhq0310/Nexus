@@ -1,3 +1,4 @@
+using Nexus.Application.DTOs.Auth;
 using Nexus.Domain.Entities;
 
 namespace Nexus.Application.Interfaces.Services;
@@ -11,5 +12,7 @@ public interface IJwtService
     /// Genera un token JWT firmado para el usuario indicado.
     /// </summary>
     /// <returns>El token y su fecha de expiración (UTC).</returns>
-    (string Token, DateTime ExpiresAt) GenerateToken(User user);
+    (string Token, DateTime ExpiresAt) GenerarToken(User user);
+
+    AutenticarAplicacionResponseDto GenerarJwtTokenAplicacion(string clientId, string codigoApp, string nombreApp);
 }
