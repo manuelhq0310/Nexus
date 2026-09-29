@@ -10,4 +10,6 @@ public interface IAplicacionService
     Task<AplicacionDto> CrearAsync(CrearAplicacionDto dto);
     Task<bool> ActualizarAsync(long id, ActualizarAplicacionDto dto);
     Task<bool> CambiarEstadoAsync(long id, bool activo);
+    Task<string> IniciarOnboardingM2MAsync(string codigoAplicacion, int horasVigencia = 24);
+    Task<ReclamarCredencialesResponseDto> ReclamarCredencialesAsync(string codigoAplicacion, string onboardingToken);
 }

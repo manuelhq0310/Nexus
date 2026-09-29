@@ -65,6 +65,9 @@ public static class DependencyInjection
         services.AddScoped<IMessageBrokerPublisher, RabbitMqMessageBrokerPublisher>();
         services.AddScoped<IUnoEConsultaService, UnoEConsultaService>();
 
+        // Registro del HostedService/Consumer
+        services.AddHostedService<UnoERespuestasConsumer>();
+
         return services;
     }
 }

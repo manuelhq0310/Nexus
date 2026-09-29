@@ -1,5 +1,6 @@
 using Nexus.Application.Common.Exceptions;
 using Nexus.Application.DTOs.Aplicaciones;
+using Nexus.Application.Helpers;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Domain.Entities.Integraciones;
@@ -85,4 +86,48 @@ public class AplicacionService : IAplicacionService
         Descripcion = aplicacion.Descripcion,
         Estado = aplicacion.Estado
     };
+
+    public async Task<string> IniciarOnboardingM2MAsync(string codigoAplicacion, int horasVigencia = 24)
+    {
+        var app = await _repository.GetByCodigoAsync(codigoAplicacion);
+        if (app == null) throw new KeyNotFoundException($"La aplicación {codigoAplicacion} no existe.");
+
+        var onboardingToken = SecretGeneratorHelper.GenerarOnboardingToken();
+
+        app.ClientId = SecretGeneratorHelper.GenerarClientId(app.CodigoApp);
+        app.OnboardingToken = onboardingToken;
+        app.FechaExpiracionOnboarding = DateTime.UtcNow.AddHours(horasVigencia);
+        app.OnboardingCompletado = false;
+
+        await _repository.SaveChangesAsync();
+
+        return onboardingToken;
+    }
+
+    public async Task<ReclamarCredencialesResponseDto> ReclamarCredencialesAsync(string codigoAplicacion, string onboardingToken)
+    {
+        var app = await _repository.GetByCodigoAsync(codigoAplicacion);
+
+        if (app == null || app.OnboardingToken != onboardingToken || app.OnboardingCompletado || app.FechaExpiracionOnboarding < DateTime.UtcNow)
+        {
+            throw new InvalidOperationException("El token de onboarding es inválido, ya fue utilizado o ha expirado.");
+        }
+
+        var plainClientSecret = SecretGeneratorHelper.GenerarClientSecret();
+
+        app.ClientSecretHash = SecretGeneratorHelper.HashSecret(plainClientSecret);
+        app.OnboardingCompletado = true;
+        app.OnboardingToken = null; // Se limpia el token para que no vuelva a usarse
+        app.FechaExpiracionOnboarding = null;
+        app.UltimaRotacionSecreto = DateTime.UtcNow;
+
+        await _repository.SaveChangesAsync();
+
+        return new ReclamarCredencialesResponseDto
+        {
+            NombreAplicacion = app.Nombre,
+            ClientId = app.ClientId!,
+            ClientSecret = plainClientSecret
+        };
+    }
 }

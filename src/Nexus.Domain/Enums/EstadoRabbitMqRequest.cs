@@ -13,8 +13,13 @@
         Completada = 2,
 
         /// <summary>
-        /// Ocurrió un error en  el consumo o durante la ejecución en UnoE.
+        /// La petición se envió con éxito a UnoE, pero respondió con errores.
         /// </summary>
-        Fallida = 3
+        ProcesadaConErrores = 3,
+
+        /// <summary>
+        /// Ocurrió un error de sistema en el consumo o durante la ejecución en UnoE.
+        /// </summary>
+        Fallida = 4
     }
 }

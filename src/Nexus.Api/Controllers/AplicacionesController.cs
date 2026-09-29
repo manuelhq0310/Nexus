@@ -65,4 +65,27 @@ public class AplicacionesController : ControllerBase
         var actualizada = await _service.CambiarEstadoAsync(id, dto.Activo);
         return actualizada ? NoContent() : NotFound();
     }
+
+    [HttpPost("onboarding/iniciar")]
+    [ProducesResponseType(typeof(IniciarOnboardingResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> IniciarOnboarding([FromBody] IniciarOnboardingRequestDto dto)
+    {
+        var resultado = await _service.IniciarOnboardingM2MAsync(dto.CodigoAplicacion, dto.HorasVigencia);
+        return Ok(resultado);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("onboarding/obtener-credenciales")]
+    [ProducesResponseType(typeof(ReclamarCredencialesResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ObtenerCredenciales([FromBody] ReclamarCredencialesRequestDto dto)
+    {
+        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+        Response.Headers["Pragma"] = "no-cache";
+
+        var credenciales = await _service.ReclamarCredencialesAsync(dto.CodigoAplicacion, dto.OnboardingToken);
+        return Ok(credenciales);
+    }
 }
