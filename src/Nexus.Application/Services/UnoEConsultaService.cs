@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Nexus.Application.Common.Exceptions;
 using Nexus.Application.DTOs.IntegracionRouter;
 using Nexus.Application.DTOs.UnoEConsultaConfig;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Domain.Entities.Integraciones;
-using System.Text.Json;
+using System.Text;
+using System.Xml.Linq;
 
 namespace Nexus.Application.Services
 {
@@ -31,40 +33,18 @@ namespace Nexus.Application.Services
             _logger = logger;
         }
 
-        //public async Task<JsonDocument> EjecutarConsultaAsync(EjecutarConsultaRequestDto request)
-        //{
-        //    var configConsulta = await _consultaConfigRepo.GetByCodigoAsync(request.CodigoConsulta)
-        //        ?? throw new KeyNotFoundException($"No existe configuración activa para la consulta: '{request.CodigoConsulta}'.");
-
-        //    var app = await _aplicacionRepo.GetByCodigoAsync(request.CodigoApp)
-        //        ?? throw new KeyNotFoundException($"Aplicación '{request.CodigoApp}' no encontrada.");
-
-        //    var appConector = await _aplicacionConectorRepo.GetByAplicacionIdAsync(app.Id)
-        //        ?? throw new UnauthorizedAccessException($"No hay credenciales ERP configuradas en IntgAplicacionConector para App '{request.CodigoApp}'.");
-
-        //    int.TryParse(request.NumeroIdentificacionEmpresa, out int idCia);
-
-        //    var conectorRequest = new ConsultaGeneralRequest
-        //    {
-        //        NombreConexion = configConsulta.NombreConexion,
-        //        IdCia = idCia,
-        //        IdProveedor = configConsulta.IdProveedor,
-        //        IdConsulta = configConsulta.CodigoConsulta,
-        //        Usuario = appConector.UsuarioErp,
-        //        Clave = appConector.PasswordErp,
-        //        Parametros = request.ParametrosXml
-        //    };
-
-        //    _logger.LogInformation("Invocando UnoEConector.ConsultaGeneral para Consulta: {Codigo}, App: {App}", request.CodigoConsulta, request.CodigoApp);
-
-        //    return await _unoEConectorClient.ConsultaGeneral(conectorRequest);
-        //}
-
         public async Task<object> PrepararConsultaGenerica(EjecutarIntegracionRequest request, IntgAplicacionConector aplicacionConector)
         {
-            var payload = JsonConvert.DeserializeObject<dynamic>(request.Payload.ToString());
-            var configConsulta = await _consultaConfigRepo.GetByCodigoAsync(payload.IdConsulta)
-                ?? throw new KeyNotFoundException($"No existe configuración activa para la consulta: '{request.CodigoIntegracion}'.");
+            var payloadJson = JObject.Parse(request.Payload.ToString());
+
+            string nombreConsulta = payloadJson["idConsulta"]?.ToString()
+                                    ?? payloadJson["IdConsulta"]?.ToString()
+                                    ?? throw new BadRequestException("No se especificó un código de consulta válido en el request.");
+
+            var configConsulta = await _consultaConfigRepo.GetByCodigoAsync(nombreConsulta)
+                ?? throw new NotFoundException($"No existe configuración activa para la consulta: '{nombreConsulta}'.");
+
+            string xmlParametros = ConstruirXmlParametros(payloadJson["parametros"] ?? payloadJson["Parametros"]);
 
             var conectorRequest = new ConsultaGeneralRequest
             {
@@ -74,10 +54,35 @@ namespace Nexus.Application.Services
                 IdConsulta = configConsulta.CodigoConsulta,
                 Usuario = aplicacionConector.UsuarioErp,
                 Clave = aplicacionConector.PasswordErp,
-                Parametros = payload.Parametros.ToString()
+                Parametros = xmlParametros
             };
 
             return conectorRequest;
+        }
+
+        private string ConstruirXmlParametros(JToken parametrosToken)
+        {
+            if (parametrosToken == null || !parametrosToken.HasValues)
+            {
+                return string.Empty;
+            }
+
+            var xmlBuilder = new StringBuilder();
+
+            if (parametrosToken is JObject parametrosObject)
+            {
+                foreach (var propiedad in parametrosObject.Properties())
+                {
+                    var nombreEtiqueta = propiedad.Name;
+                    var valor = propiedad.Value?.ToString() ?? string.Empty;
+
+                    // Escapa caracteres especiales automáticamente
+                    var elemento = new XElement(nombreEtiqueta, valor);
+                    xmlBuilder.Append(elemento.ToString(SaveOptions.DisableFormatting));
+                }
+            }
+
+            return xmlBuilder.ToString();
         }
 
         public async Task<UnoEConsultaConfig?> ObtenerPorCodigoAsync(string codigoConsulta)
@@ -101,7 +106,7 @@ namespace Nexus.Application.Services
             var existe = await _consultaConfigRepo.GetByCodigoAsync(config.CodigoConsulta);
             if (existe == null)
             {
-                throw new KeyNotFoundException($"No se puede actualizar. No existe la consulta '{config.CodigoConsulta}'.");
+                throw new NotFoundException($"No se puede actualizar. No existe la consulta '{config.CodigoConsulta}'.");
             }
 
             _logger.LogInformation("Actualizando configuración de consulta UnoE: {Codigo}", config.CodigoConsulta);
@@ -113,7 +118,7 @@ namespace Nexus.Application.Services
             var consulta = await _consultaConfigRepo.GetByCodigoAsync(codigoConsulta);
             if (consulta == null)
             {
-                throw new KeyNotFoundException($"No se encontró la consulta '{codigoConsulta}' para modificar su estado.");
+                throw new NotFoundException($"No se encontró la consulta '{codigoConsulta}' para modificar su estado.");
             }
 
             consulta.Estado = nuevoEstado;

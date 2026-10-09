@@ -22,37 +22,6 @@ namespace Nexus.Api.Controllers
             _logger = logger;
         }
 
-        ///// <summary>
-        ///// Endpoint expuesto a clientes externos (ej. Tickelia) para ejecutar consultas dinámicas en UnoE.
-        ///// </summary>
-        //[HttpPost("ejecutar")]
-        //[ProducesResponseType(typeof(JsonDocument), StatusCodes.Status200OK)]
-        //[ProducesResponseType(StatusCodes.Status400BadRequest)]
-        //[ProducesResponseType(StatusCodes.Status404NotFound)]
-        //public async Task<IActionResult> EjecutarConsulta([FromBody] EjecutarConsultaRequestDto request)
-        //{
-        //    try
-        //    {
-        //        var resultadoJson = await _consultaService.EjecutarConsultaAsync(request);
-        //        return Ok(resultadoJson);
-        //    }
-        //    catch (KeyNotFoundException ex)
-        //    {
-        //        _logger.LogWarning(ex.Message);
-        //        return NotFound(new { mensaje = ex.Message });
-        //    }
-        //    catch (UnauthorizedAccessException ex)
-        //    {
-        //        _logger.LogWarning(ex.Message);
-        //        return Unauthorized(new { mensaje = ex.Message });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error procesando consulta genérica en UnoE.");
-        //        return StatusCode(500, new { mensaje = "Error interno procesando la consulta.", detalle = ex.Message });
-        //    }
-        //}
-
         /// <summary>
         /// Obtiene todas las configuraciones de consultas activas registradas en Nexus.
         /// </summary>

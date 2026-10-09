@@ -90,7 +90,7 @@ public class AplicacionService : IAplicacionService
     public async Task<string> IniciarOnboardingM2MAsync(string codigoAplicacion, int horasVigencia = 24)
     {
         var app = await _repository.GetByCodigoAsync(codigoAplicacion);
-        if (app == null) throw new KeyNotFoundException($"La aplicación {codigoAplicacion} no existe.");
+        if (app == null) throw new NotFoundException($"La aplicación {codigoAplicacion} no existe.");
 
         var onboardingToken = SecretGeneratorHelper.GenerarOnboardingToken();
 

@@ -1,4 +1,19 @@
 services:
+  nexus-gateway:
+    image: nexus-gateway
+    container_name: nexus_gateway
+    restart: unless-stopped
+    ports:
+      - "5077:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__nexus-api-cluster__Destinations__destination1__Address=http://nexus.api:8080
+      - Jwt__SecretKey=kUb0z1CdcrsnHixRBsNbqS2Df6L5ayJH
+      - Jwt__Issuer=Nexus.Api
+      - Jwt__Audience=Nexus.Clients
+    depends_on:
+      - nexus.api
+
   nexus.api:
     build:
       context: .
@@ -61,6 +76,5 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
 volumes:
   postgres_data:
