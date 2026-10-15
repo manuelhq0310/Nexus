@@ -53,6 +53,7 @@ public class AplicacionIntegracionRepository : IAplicacionIntegracionRepository
             .ThenInclude(a => a.AplicacionConectores)
             .Include(ai => ai.Integracion)
             .ThenInclude(i => i.IntegracionConectores)
+            .ThenInclude(ic => ic.UnoEConsultaConfig)
             .FirstOrDefaultAsync(ai =>
                 ai.Aplicacion.CodigoApp == codigoAplicacion &&
                 ai.Integracion.CodigoAccion == codigoIntegracion);

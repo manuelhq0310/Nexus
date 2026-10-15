@@ -33,10 +33,6 @@ namespace Nexus.Infrastructure.Persistence.Configurations.Integraciones
                 .IsRequired()
                 .HasMaxLength(100);
 
-            builder.Property(e => e.PlantillaParametrosXml)
-                .IsRequired()
-                .HasColumnType("text");
-
             builder.Property(e => e.Estado)
                 .HasDefaultValue(true);
 

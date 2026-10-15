@@ -352,15 +352,15 @@ namespace Nexus.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<bool>("ConsultaGenerica")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Descripcion")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("EsAsincrono")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("Estado")
                         .ValueGeneratedOnAdd()
@@ -404,6 +404,9 @@ namespace Nexus.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("EsConsultaGenerica")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("Estado")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -417,12 +420,17 @@ namespace Nexus.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)");
 
+                    b.Property<long?>("UnoEConsultaConfigId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ConectorId");
+
+                    b.HasIndex("UnoEConsultaConfigId");
 
                     b.HasIndex("IntegracionId", "ConectorId")
                         .IsUnique();
@@ -525,10 +533,6 @@ namespace Nexus.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("PlantillaParametrosXml")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -699,9 +703,16 @@ namespace Nexus.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Nexus.Domain.Entities.Integraciones.UnoEConsultaConfig", "UnoEConsultaConfig")
+                        .WithMany("IntegracionConectores")
+                        .HasForeignKey("UnoEConsultaConfigId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Conector");
 
                     b.Navigation("Integracion");
+
+                    b.Navigation("UnoEConsultaConfig");
                 });
 
             modelBuilder.Entity("Nexus.Domain.Entities.Integraciones.IntgAplicacion", b =>
@@ -741,6 +752,11 @@ namespace Nexus.Infrastructure.Migrations
             modelBuilder.Entity("Nexus.Domain.Entities.Integraciones.IntgIntegracionConector", b =>
                 {
                     b.Navigation("EmpresaIntegracionConectores");
+                });
+
+            modelBuilder.Entity("Nexus.Domain.Entities.Integraciones.UnoEConsultaConfig", b =>
+                {
+                    b.Navigation("IntegracionConectores");
                 });
 #pragma warning restore 612, 618
         }

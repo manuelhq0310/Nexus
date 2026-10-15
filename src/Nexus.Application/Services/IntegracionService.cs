@@ -45,7 +45,7 @@ public class IntegracionService : IIntegracionService
             Nombre = dto.Nombre,
             Descripcion = dto.Descripcion,
             Tipo = dto.Tipo,
-            ConsultaGenerica = dto.ConsultaGenerica
+            EsAsincrono = dto.EsAsincrono
         };
 
         await _repository.AddAsync(integracion);
@@ -64,7 +64,7 @@ public class IntegracionService : IIntegracionService
         integracion.Nombre = dto.Nombre;
         integracion.Descripcion = dto.Descripcion;
         integracion.Tipo = dto.Tipo;
-        integracion.ConsultaGenerica = dto.ConsultaGenerica;
+        integracion.EsAsincrono = dto.EsAsincrono;
         integracion.UpdatedAt = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync();
@@ -89,7 +89,7 @@ public class IntegracionService : IIntegracionService
         Nombre = integracion.Nombre,
         Descripcion = integracion.Descripcion,
         Tipo = integracion.Tipo,
-        ConsultaGenerica = integracion.ConsultaGenerica,
+        EsAsincrono = integracion.EsAsincrono,
         Estado = integracion.Estado
     };
 }

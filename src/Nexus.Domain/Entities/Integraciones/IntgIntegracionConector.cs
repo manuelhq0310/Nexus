@@ -11,14 +11,17 @@ public class IntgIntegracionConector : IntgBaseEntity
     public long ConectorId { get; set; }
 
     /// <summary>Ej: "api/v1/Anticipos/RegistrarAnticipo" (se concatena con UrlBase).</summary>
-    public string RutaEndpoint { get; set; } = string.Empty;
+    public string? RutaEndpoint { get; set; } = string.Empty;
 
     /// <summary>Ej: "sapecc-anticipos-queue".</summary>
     public string? ColaRabbitMQDestino { get; set; }
+    public bool EsConsultaGenerica { get; set; } = false;
+    public long? UnoEConsultaConfigId { get; set; }
 
     // Navegación
     public IntgIntegracion Integracion { get; set; } = null!;
     public IntgConector Conector { get; set; } = null!;
+    public UnoEConsultaConfig? UnoEConsultaConfig { get; set; }
 
     public ICollection<IntgEmpresaIntegracionConector> EmpresaIntegracionConectores { get; set; }
         = new List<IntgEmpresaIntegracionConector>();

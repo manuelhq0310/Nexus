@@ -9,6 +9,6 @@ public class IntegracionDto
     public string Nombre { get; set; } = string.Empty;
     public string? Descripcion { get; set; }
     public TipoIntegracion Tipo { get; set; }
-    public bool ConsultaGenerica { get; set; }
+    public bool EsAsincrono { get; set; }
     public bool Estado { get; set; }
 }

@@ -23,7 +23,7 @@ public class IntgIntegracion : IntgBaseEntity
     /// </summary>
     public TipoIntegracion Tipo { get; set; }
 
-    public bool ConsultaGenerica { get; set; }
+    public bool EsAsincrono { get; set; }
 
     // Navegación
     public ICollection<IntgIntegracionConector> IntegracionConectores { get; set; }

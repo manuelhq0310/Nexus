@@ -38,6 +38,12 @@ public class IntgIntegracionConectorConfiguration : IEntityTypeConfiguration<Int
             .HasForeignKey(ic => ic.ConectorId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // FK -> UnoEConsultaConfig
+        builder.HasOne(ic => ic.UnoEConsultaConfig)
+            .WithMany(u => u.IntegracionConectores)
+            .HasForeignKey(ic => ic.UnoEConsultaConfigId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Una integración no puede resolverse dos veces por el mismo conector.
         builder.HasIndex(ic => new { ic.IntegracionId, ic.ConectorId }).IsUnique();
     }

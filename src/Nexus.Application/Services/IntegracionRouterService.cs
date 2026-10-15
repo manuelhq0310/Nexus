@@ -98,7 +98,7 @@ namespace Nexus.Application.Services
                 );
             }
 
-            if (integracion.Tipo == TipoIntegracion.Escritura)
+            if (integracion.EsAsincrono)
             {
                 // Construcción del nombre de la cola según el conector de la empresa
                 string nombreCola = integracionConector.ColaRabbitMQDestino ?? string.Empty;
@@ -107,12 +107,11 @@ namespace Nexus.Application.Services
             else
             {
                 // Construcción de la URL endpoint combinando la BaseUrl del Conector con el Path de la Integración
-                string urlEndpoint = $"{empresaConector.Conector.UrlBase.TrimEnd('/')}/{integracionConector.RutaEndpoint.TrimStart('/')}";
+                string urlEndpoint = $"{empresaConector.Conector.UrlBase.TrimEnd('/')}/{integracionConector.RutaEndpoint!.TrimStart('/')}";
                 object payload;
-                if (integracion.ConsultaGenerica)
-                {
-                    
-                    payload = await _unoEConsultaService.PrepararConsultaGenerica(request, aplicacionConector);
+                if (integracionConector.EsConsultaGenerica)
+                {                    
+                    payload = await _unoEConsultaService.PrepararConsultaGenerica(request, aplicacionConector, integracionConector);
                 }
                 else
                 {

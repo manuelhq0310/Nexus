@@ -8,7 +8,7 @@ public class IntegracionConectorDto
     public string? CodigoAccion { get; set; }
     public long ConectorId { get; set; }
     public string? NombreConector { get; set; }
-    public string RutaEndpoint { get; set; } = string.Empty;
+    public string? RutaEndpoint { get; set; } = string.Empty;
     public string? ColaRabbitMQDestino { get; set; }
     public bool Estado { get; set; }
 }

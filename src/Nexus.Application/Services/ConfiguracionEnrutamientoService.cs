@@ -89,7 +89,7 @@ public class ConfiguracionEnrutamientoService : IConfiguracionEnrutamientoServic
         if (entity is null) return null;
 
         var conector = entity.IntegracionConector.Conector;
-        var urlCompleta = $"{conector.UrlBase.TrimEnd('/')}/{entity.IntegracionConector.RutaEndpoint.TrimStart('/')}";
+        var urlCompleta = $"{conector.UrlBase.TrimEnd('/')}/{entity.IntegracionConector.RutaEndpoint!.TrimStart('/')}";
 
         return new RutaEnrutamientoResueltaDto
         {

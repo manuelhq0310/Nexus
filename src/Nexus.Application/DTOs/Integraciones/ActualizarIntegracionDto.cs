@@ -18,5 +18,5 @@ public class ActualizarIntegracionDto
 
     public TipoIntegracion Tipo { get; set; }
 
-    public bool ConsultaGenerica { get; set; }
+    public bool EsAsincrono { get; set; }
 }

@@ -33,16 +33,13 @@ namespace Nexus.Application.Services
             _logger = logger;
         }
 
-        public async Task<object> PrepararConsultaGenerica(EjecutarIntegracionRequest request, IntgAplicacionConector aplicacionConector)
+        public async Task<object> PrepararConsultaGenerica(EjecutarIntegracionRequest request, IntgAplicacionConector aplicacionConector,
+                                                            IntgIntegracionConector integracionConector)
         {
             var payloadJson = JObject.Parse(request.Payload.ToString());
 
-            string nombreConsulta = payloadJson["idConsulta"]?.ToString()
-                                    ?? payloadJson["IdConsulta"]?.ToString()
-                                    ?? throw new BadRequestException("No se especificó un código de consulta válido en el request.");
-
-            var configConsulta = await _consultaConfigRepo.GetByCodigoAsync(nombreConsulta)
-                ?? throw new NotFoundException($"No existe configuración activa para la consulta: '{nombreConsulta}'.");
+            var configConsulta = integracionConector.UnoEConsultaConfig
+                    ?? throw new NotFoundException($"La integración '{request.CodigoIntegracion}' no tiene asignada una Consulta de UnoE.");
 
             string xmlParametros = ConstruirXmlParametros(payloadJson["parametros"] ?? payloadJson["Parametros"]);
 

@@ -18,5 +18,5 @@ public class CrearIntegracionDto
 
     public TipoIntegracion Tipo { get; set; }
 
-    public bool ConsultaGenerica { get; set; } = false;
+    public bool EsAsincrono { get; set; } = false;
 }

@@ -16,6 +16,6 @@ namespace Nexus.Application.Interfaces.Services
         Task<UnoEConsultaConfig> RegistrarConsultaConfigAsync(UnoEConsultaConfig config);
         Task<bool> ActualizarConsultaConfigAsync(UnoEConsultaConfig config);
         Task<bool> CambiarEstadoAsync(string codigoConsulta, bool nuevoEstado);
-        Task<object> PrepararConsultaGenerica(EjecutarIntegracionRequest request, IntgAplicacionConector aplicacionConector);
+        Task<object> PrepararConsultaGenerica(EjecutarIntegracionRequest request, IntgAplicacionConector aplicacionConector, IntgIntegracionConector integracionConector);
     }
 }
