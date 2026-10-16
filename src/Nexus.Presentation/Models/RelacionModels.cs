@@ -1,6 +1,6 @@
 namespace Nexus.Presentation.Models;
 
-/// <summary>Relación Integración &lt;-&gt; Conector (qué conector resuelve qué integración y con qué endpoint).</summary>
+/// <summary>Relación Integración &lt;-&gt; Conector (qué conector resuelve qué integración y por qué ruta/cola).</summary>
 public class IntegracionConectorDto
 {
     public long Id { get; set; }
@@ -9,8 +9,19 @@ public class IntegracionConectorDto
     public string? CodigoAccion { get; set; }
     public long ConectorId { get; set; }
     public string? NombreConector { get; set; }
-    public string RutaEndpoint { get; set; } = string.Empty;
+
+    /// <summary>Opcional: solo obligatoria si la integración NO es asíncrona.</summary>
+    public string? RutaEndpoint { get; set; }
+
+    /// <summary>Opcional: solo obligatoria si la integración es asíncrona.</summary>
     public string? ColaRabbitMQDestino { get; set; }
+
+    /// <summary>Solo aplica a integraciones de tipo Consulta.</summary>
+    public bool EsConsultaGenerica { get; set; }
+
+    /// <summary>Consulta UnoE asociada (UnoEConsultaConfig.Id), cuando es consulta genérica.</summary>
+    public long? UnoEConsultaConfigId { get; set; }
+
     public bool Estado { get; set; }
 }
 
@@ -18,14 +29,18 @@ public class CrearIntegracionConectorDto
 {
     public long IntegracionId { get; set; }
     public long ConectorId { get; set; }
-    public string RutaEndpoint { get; set; } = string.Empty;
+    public string? RutaEndpoint { get; set; }
     public string? ColaRabbitMQDestino { get; set; }
+    public bool EsConsultaGenerica { get; set; }
+    public long? UnoEConsultaConfigId { get; set; }
 }
 
 public class ActualizarIntegracionConectorDto
 {
-    public string RutaEndpoint { get; set; } = string.Empty;
+    public string? RutaEndpoint { get; set; }
     public string? ColaRabbitMQDestino { get; set; }
+    public bool EsConsultaGenerica { get; set; }
+    public long? UnoEConsultaConfigId { get; set; }
 }
 
 /// <summary>

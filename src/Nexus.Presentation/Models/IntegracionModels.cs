@@ -14,7 +14,7 @@ public class IntegracionDto
     public string Nombre { get; set; } = string.Empty;
     public string? Descripcion { get; set; }
     public TipoIntegracion? Tipo { get; set; }
-    public bool ConsultaGenerica { get; set; }
+    public bool EsAsincrono { get; set; }
     public bool Estado { get; set; }
 }
 
@@ -25,8 +25,8 @@ public class CrearIntegracionDto
     public string? Descripcion { get; set; }
     public TipoIntegracion? Tipo { get; set; }
 
-    /// <summary>Solo tiene sentido cuando Tipo = Consulta.</summary>
-    public bool ConsultaGenerica { get; set; }
+    /// <summary>true: se enruta por la cola de RabbitMQ; false: por la RutaEndpoint (HTTP).</summary>
+    public bool EsAsincrono { get; set; }
 }
 
 public class ActualizarIntegracionDto
@@ -36,6 +36,6 @@ public class ActualizarIntegracionDto
     public string? Descripcion { get; set; }
     public TipoIntegracion? Tipo { get; set; }
 
-    /// <summary>Solo tiene sentido cuando Tipo = Consulta.</summary>
-    public bool ConsultaGenerica { get; set; }
+    /// <summary>true: se enruta por la cola de RabbitMQ; false: por la RutaEndpoint (HTTP).</summary>
+    public bool EsAsincrono { get; set; }
 }
