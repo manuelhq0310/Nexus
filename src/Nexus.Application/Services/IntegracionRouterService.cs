@@ -135,14 +135,14 @@ namespace Nexus.Application.Services
             response = await client.PostAsync(urlEndpoint, content);
 
             var responseBody = await response.Content.ReadAsStringAsync();
+			var dataResult = JsonSerializer.Deserialize<object>(responseBody);
 
-            if (response.IsSuccessStatusCode)
+			if (response.IsSuccessStatusCode)
             {
-                var dataResult = JsonSerializer.Deserialize<object>(responseBody);
                 return new EjecutarIntegracionResponse(true, "Integración ejecutada en el conector con éxito.", dataResult, Guid.NewGuid().ToString());
             }
 
-            return new EjecutarIntegracionResponse(false, $"Error devuelto por el conector ({response.StatusCode}):", responseBody, null);
+			return new EjecutarIntegracionResponse(false, $"Error devuelto por el conector ({response.StatusCode}):", dataResult, null);
         }
 
         private async Task<EjecutarIntegracionResponse> PublicarAColaAsync(
