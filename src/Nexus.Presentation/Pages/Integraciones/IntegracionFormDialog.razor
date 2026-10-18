@@ -28,10 +28,10 @@
                 <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
             </MudSelect>
 
-            @if (_model.Tipo == TipoIntegracion.Consulta)
-            {
-                <MudCheckBox T="bool" @bind-Value="_model.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" />
-            }
+            <MudCheckBox T="bool" @bind-Value="_model.EsAsincrono" Label="Es asíncrona (se enruta por cola de RabbitMQ)" Class="mb-0" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                Si no es asíncrona, se enruta por la ruta (endpoint) del conector.
+            </MudText>
 
             @if (!string.IsNullOrEmpty(_error))
             {
@@ -70,18 +70,12 @@
             _model.Nombre = Existente.Nombre;
             _model.Descripcion = Existente.Descripcion ?? string.Empty;
             _model.Tipo = Existente.Tipo;
-            _model.ConsultaGenerica = Existente.ConsultaGenerica;
+            _model.EsAsincrono = Existente.EsAsincrono;
         }
     }
 
     private async Task GuardarAsync()
     {
-        // Si el tipo es Escritura, ConsultaGenerica no aplica.
-        if (_model.Tipo == TipoIntegracion.Escritura)
-        {
-            _model.ConsultaGenerica = false;
-        }
-
         _guardando = true;
         _error = null;
         try
@@ -94,7 +88,7 @@
                     Nombre = _model.Nombre,
                     Descripcion = _model.Descripcion,
                     Tipo = _model.Tipo,
-                    ConsultaGenerica = _model.ConsultaGenerica
+                    EsAsincrono = _model.EsAsincrono
                 });
             }
             else
@@ -105,7 +99,7 @@
                     Nombre = _model.Nombre,
                     Descripcion = _model.Descripcion,
                     Tipo = _model.Tipo,
-                    ConsultaGenerica = _model.ConsultaGenerica
+                    EsAsincrono = _model.EsAsincrono
                 });
             }
 
@@ -140,6 +134,6 @@
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Selecciona el tipo de integración.")]
         public TipoIntegracion? Tipo { get; set; }
 
-        public bool ConsultaGenerica { get; set; }
+        public bool EsAsincrono { get; set; }
     }
 }

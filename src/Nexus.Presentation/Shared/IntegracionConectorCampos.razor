@@ -1,0 +1,59 @@
+@* Campos del formulario "habilitar conector en una integración", con reglas según la
+   integración padre (Tipo / EsAsincrono). Reutilizado en el detalle, el asistente y el diálogo de edición. *@
+
+@if (Conectores is not null)
+{
+    <MudSelect T="long?" Label="Conector" @bind-Value="Model.ConectorId" Variant="Variant.Outlined" Class="mb-3" Required="true">
+        @foreach (var conector in Conectores)
+        {
+            <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
+        }
+    </MudSelect>
+}
+
+<MudGrid>
+    <MudItem xs="12" sm="6">
+        <MudTextField T="string" Label="@(EsAsincrono ? "Ruta del endpoint (opcional)" : "Ruta del endpoint")"
+                      @bind-Value="Model.RutaEndpoint" Variant="Variant.Outlined" Required="@(!EsAsincrono)"
+                      HelperText='Se concatena con la URL base. Ej: "api/v1/Anticipos/RegistrarAnticipo"' />
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudTextField T="string" Label="@(EsAsincrono ? "Cola RabbitMQ destino" : "Cola RabbitMQ destino (opcional)")"
+                      @bind-Value="Model.ColaRabbitMQDestino" Variant="Variant.Outlined" Required="@EsAsincrono"
+                      HelperText="@(EsAsincrono ? "Obligatoria: la integración es asíncrona." : "Solo si también se publica en una cola.")" />
+    </MudItem>
+</MudGrid>
+
+@if (Tipo == TipoIntegracion.Consulta)
+{
+    <MudCheckBox T="bool" @bind-Value="Model.EsConsultaGenerica" Label="Se ejecuta como consulta genérica" Class="mt-2" />
+
+    @if (Model.EsConsultaGenerica)
+    {
+        <MudSelect T="long?" Label="Consulta UnoE asociada" @bind-Value="Model.UnoEConsultaConfigId"
+                   Variant="Variant.Outlined" Required="true"
+                   HelperText="Consulta configurada previamente en Conectores → Consultas UnoE.">
+            @foreach (var consulta in UnoEConsultas)
+            {
+                <MudSelectItem T="long?" Value="@consulta.Id">@consulta.CodigoConsulta @(string.IsNullOrWhiteSpace(consulta.Descripcion) ? "" : $"— {consulta.Descripcion}")</MudSelectItem>
+            }
+        </MudSelect>
+        @if (UnoEConsultas.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                No hay consultas UnoE activas. <MudLink Href="/conectores/unoe-consultas">Crea una primero</MudLink>.
+            </MudAlert>
+        }
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public IntegracionConectorFormModel Model { get; set; } = default!;
+    [Parameter] public TipoIntegracion? Tipo { get; set; }
+    [Parameter] public bool EsAsincrono { get; set; }
+
+    /// <summary>Si es null no se muestra el selector de conector (modo edición).</summary>
+    [Parameter] public IEnumerable<ConectorDto>? Conectores { get; set; }
+
+    [Parameter] public List<UnoEConsultaConfigDto> UnoEConsultas { get; set; } = new();
+}

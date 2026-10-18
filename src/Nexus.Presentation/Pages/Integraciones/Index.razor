@@ -42,10 +42,9 @@
                     <MudChip T="string" Size="Size.Small" Color="@(context.Tipo == TipoIntegracion.Consulta ? Color.Info : Color.Warning)">
                         @(context.Tipo == TipoIntegracion.Consulta ? "Consulta" : "Escritura")
                     </MudChip>
-                    @if (context.Tipo == TipoIntegracion.Consulta && context.ConsultaGenerica)
-                    {
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">Genérica</MudChip>
-                    }
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">
+                        @(context.EsAsincrono ? "Asíncrona" : "Síncrona")
+                    </MudChip>
                 }
                 else
                 {

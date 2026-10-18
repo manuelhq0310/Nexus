@@ -4,6 +4,7 @@
 @using Nexus.Presentation.Services.Api
 @inject IntegracionApiService IntegracionApi
 @inject ConectorApiService ConectorApi
+@inject UnoEConsultaApiService UnoEConsultaApi
 @inject IntegracionConectorApiService IntegracionConectorApi
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -69,10 +70,10 @@
                 <MudSelectItem T="TipoIntegracion?" Value="TipoIntegracion.Escritura">Escritura</MudSelectItem>
             </MudSelect>
 
-            @if (_integracionForm.Tipo == TipoIntegracion.Consulta)
-            {
-                <MudCheckBox T="bool" @bind-Value="_integracionForm.ConsultaGenerica" Label="Es una consulta genérica" Class="mb-2" Disabled="_integracionId.HasValue" />
-            }
+            <MudCheckBox T="bool" @bind-Value="_integracionForm.EsAsincrono" Label="Es asíncrona (se enruta por cola de RabbitMQ)" Class="mb-0" Disabled="_integracionId.HasValue" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                Si no es asíncrona, se enruta por la ruta (endpoint) del conector.
+            </MudText>
 
             @if (!string.IsNullOrEmpty(_error))
             {
@@ -96,7 +97,7 @@
         <!-- ===================== Paso 2: Habilitar conectores ===================== -->
         <MudText Typo="Typo.body1" Class="mb-4">
             Habilita uno o más conectores que podrán resolver <b>@_integracionForm.Nombre</b>,
-            indicando la ruta del endpoint y, opcionalmente, la cola de RabbitMQ de cada uno.
+            indicando @(_integracionForm.EsAsincrono ? "la cola de RabbitMQ destino" : "la ruta del endpoint") de cada uno.
         </MudText>
 
         @if (_conectoresActivos.Count == 0)
@@ -110,23 +111,8 @@
         else
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4">
-                <MudGrid>
-                    <MudItem xs="12" sm="5">
-                        <MudSelect T="long?" Label="Conector" @bind-Value="_nuevoConectorId" Variant="Variant.Outlined">
-                            @foreach (var conector in _conectoresDisponiblesParaAgregar)
-                            {
-                                <MudSelectItem T="long?" Value="@conector.Id">@conector.Nombre (@conector.TipoProtocolo)</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudTextField T="string" Label="Ruta del endpoint" @bind-Value="_nuevaRuta" Variant="Variant.Outlined"
-                                      HelperText='Ej: "api/v1/Anticipos/RegistrarAnticipo"' />
-                    </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudTextField T="string" Label="Cola RabbitMQ (opcional)" @bind-Value="_nuevaCola" Variant="Variant.Outlined" />
-                    </MudItem>
-                </MudGrid>
+                <IntegracionConectorCampos Model="_nuevoForm" Tipo="_integracionForm.Tipo" EsAsincrono="_integracionForm.EsAsincrono"
+                                           Conectores="_conectoresDisponiblesParaAgregar" UnoEConsultas="_unoEConsultas" />
                 <div class="d-flex justify-end mt-3">
                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add"
                                Disabled="@(_agregandoConector || _conectoresDisponiblesParaAgregar.ToList().Count == 0)" OnClick="AgregarConectorAsync">
@@ -147,11 +133,15 @@
                     <MudTh>Conector</MudTh>
                     <MudTh>Ruta del endpoint</MudTh>
                     <MudTh>Cola RabbitMQ</MudTh>
+                    <MudTh>Consulta genérica</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Conector">@context.NombreConector</MudTd>
-                    <MudTd DataLabel="Ruta"><code>@context.RutaEndpoint</code></MudTd>
-                    <MudTd DataLabel="Cola">@(context.ColaRabbitMQDestino ?? "—")</MudTd>
+                    <MudTd DataLabel="Ruta">
+                        @if (string.IsNullOrWhiteSpace(context.RutaEndpoint)) { <span>—</span> } else { <code>@context.RutaEndpoint</code> }
+                    </MudTd>
+                    <MudTd DataLabel="Cola">@(string.IsNullOrWhiteSpace(context.ColaRabbitMQDestino) ? "—" : context.ColaRabbitMQDestino)</MudTd>
+                    <MudTd DataLabel="Consulta genérica">@(context.EsConsultaGenerica ? "Sí" : "—")</MudTd>
                 </RowTemplate>
             </MudTable>
         }
@@ -187,9 +177,8 @@
     // Paso 2
     private List<ConectorDto> _conectoresActivos = new();
     private readonly List<IntegracionConectorDto> _conectoresAgregados = new();
-    private long? _nuevoConectorId;
-    private string _nuevaRuta = string.Empty;
-    private string _nuevaCola = string.Empty;
+    private readonly IntegracionConectorFormModel _nuevoForm = new();
+    private List<UnoEConsultaConfigDto> _unoEConsultas = new();
     private bool _agregandoConector;
 
     private IEnumerable<ConectorDto> _conectoresDisponiblesParaAgregar =>
@@ -200,6 +189,7 @@
         try
         {
             _conectoresActivos = await ConectorApi.ObtenerTodosAsync(soloActivos: true);
+            _unoEConsultas = await UnoEConsultaApi.ObtenerTodasAsync();
         }
         catch (ApiException ex)
         {
@@ -219,12 +209,6 @@
         {
             _error = "Selecciona el tipo de integración.";
             return;
-        }
-
-        // Si el tipo es Escritura, ConsultaGenerica no aplica.
-        if (_integracionForm.Tipo == TipoIntegracion.Escritura)
-        {
-            _integracionForm.ConsultaGenerica = false;
         }
 
         _guardando = true;
@@ -247,28 +231,20 @@
 
     private async Task AgregarConectorAsync()
     {
-        if (_nuevoConectorId is null || string.IsNullOrWhiteSpace(_nuevaRuta))
+        _error = _nuevoForm.Validar(_integracionForm.Tipo, _integracionForm.EsAsincrono, requiereConector: true);
+        if (_error is not null)
         {
-            _error = "Selecciona un conector e indica la ruta del endpoint.";
             return;
         }
 
         _agregandoConector = true;
-        _error = null;
         try
         {
-            var nuevaRelacion = await IntegracionConectorApi.CrearAsync(new CrearIntegracionConectorDto
-            {
-                IntegracionId = _integracionId!.Value,
-                ConectorId = _nuevoConectorId.Value,
-                RutaEndpoint = _nuevaRuta,
-                ColaRabbitMQDestino = string.IsNullOrWhiteSpace(_nuevaCola) ? null : _nuevaCola
-            });
+            var nuevaRelacion = await IntegracionConectorApi.CrearAsync(
+                _nuevoForm.ACrear(_integracionId!.Value, _integracionForm.Tipo));
 
             _conectoresAgregados.Add(nuevaRelacion);
-            _nuevoConectorId = null;
-            _nuevaRuta = string.Empty;
-            _nuevaCola = string.Empty;
+            _nuevoForm.Limpiar();
         }
         catch (ApiException ex)
         {
