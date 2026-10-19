@@ -10,10 +10,17 @@ public class CrearIntegracionConectorDto
     [Required(ErrorMessage = "El conector es obligatorio.")]
     public long ConectorId { get; set; }
 
-    [Required(ErrorMessage = "La ruta del endpoint es obligatoria.")]
+    /// <summary>Obligatoria solo si la integración NO es asíncrona (se valida en el servicio).</summary>
     [MaxLength(250)]
-    public string RutaEndpoint { get; set; } = string.Empty;
+    public string? RutaEndpoint { get; set; }
 
+    /// <summary>Obligatoria solo si la integración es asíncrona (se valida en el servicio).</summary>
     [MaxLength(100)]
     public string? ColaRabbitMQDestino { get; set; }
+
+    /// <summary>Solo aplica a integraciones de tipo Consulta.</summary>
+    public bool EsConsultaGenerica { get; set; }
+
+    /// <summary>Consulta UnoE asociada; obligatoria cuando EsConsultaGenerica = true.</summary>
+    public long? UnoEConsultaConfigId { get; set; }
 }

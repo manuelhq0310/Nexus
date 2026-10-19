@@ -10,5 +10,7 @@ public class IntegracionConectorDto
     public string? NombreConector { get; set; }
     public string? RutaEndpoint { get; set; } = string.Empty;
     public string? ColaRabbitMQDestino { get; set; }
+    public bool EsConsultaGenerica { get; set; }
+    public long? UnoEConsultaConfigId { get; set; }
     public bool Estado { get; set; }
 }

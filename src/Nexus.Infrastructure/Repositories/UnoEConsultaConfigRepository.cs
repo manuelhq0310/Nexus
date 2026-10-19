@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Domain.Entities.Integraciones;
 using Nexus.Infrastructure.Persistence;
@@ -19,6 +19,13 @@ namespace Nexus.Infrastructure.Repositories
             return await _context.Set<UnoEConsultaConfig>()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.CodigoConsulta == codigoConsulta && x.Estado);
+        }
+
+        public async Task<UnoEConsultaConfig?> GetByIdAsync(long id)
+        {
+            return await _context.Set<UnoEConsultaConfig>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<IEnumerable<UnoEConsultaConfig>> GetAllActivasAsync()

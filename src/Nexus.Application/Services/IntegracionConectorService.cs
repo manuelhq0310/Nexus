@@ -3,6 +3,7 @@ using Nexus.Application.DTOs.IntegracionConectores;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
 using Nexus.Domain.Entities.Integraciones;
+using Nexus.Domain.Enums;
 
 namespace Nexus.Application.Services;
 
@@ -11,15 +12,18 @@ public class IntegracionConectorService : IIntegracionConectorService
     private readonly IIntegracionConectorRepository _repository;
     private readonly IIntegracionRepository _integracionRepository;
     private readonly IConectorRepository _conectorRepository;
+    private readonly IUnoEConsultaConfigRepository _unoEConsultaRepository;
 
     public IntegracionConectorService(
         IIntegracionConectorRepository repository,
         IIntegracionRepository integracionRepository,
-        IConectorRepository conectorRepository)
+        IConectorRepository conectorRepository,
+        IUnoEConsultaConfigRepository unoEConsultaRepository)
     {
         _repository = repository;
         _integracionRepository = integracionRepository;
         _conectorRepository = conectorRepository;
+        _unoEConsultaRepository = unoEConsultaRepository;
     }
 
     public async Task<IntegracionConectorDto?> ObtenerPorIdAsync(long id)
@@ -42,10 +46,8 @@ public class IntegracionConectorService : IIntegracionConectorService
 
     public async Task<IntegracionConectorDto> CrearAsync(CrearIntegracionConectorDto dto)
     {
-        if (await _integracionRepository.GetByIdAsync(dto.IntegracionId) is null)
-        {
-            throw new NotFoundException("La integración indicada no existe.");
-        }
+        var integracion = await _integracionRepository.GetByIdAsync(dto.IntegracionId)
+            ?? throw new NotFoundException("La integración indicada no existe.");
 
         if (await _conectorRepository.GetByIdAsync(dto.ConectorId) is null)
         {
@@ -57,12 +59,17 @@ public class IntegracionConectorService : IIntegracionConectorService
             throw new BadRequestException("Ese conector ya está habilitado para esta integración.");
         }
 
+        var (ruta, cola, esGenerica, unoEId) = await ValidarYNormalizarAsync(
+            integracion, dto.RutaEndpoint, dto.ColaRabbitMQDestino, dto.EsConsultaGenerica, dto.UnoEConsultaConfigId);
+
         var entity = new IntgIntegracionConector
         {
             IntegracionId = dto.IntegracionId,
             ConectorId = dto.ConectorId,
-            RutaEndpoint = dto.RutaEndpoint,
-            ColaRabbitMQDestino = dto.ColaRabbitMQDestino
+            RutaEndpoint = ruta,
+            ColaRabbitMQDestino = cola,
+            EsConsultaGenerica = esGenerica,
+            UnoEConsultaConfigId = unoEId
         };
 
         await _repository.AddAsync(entity);
@@ -78,8 +85,17 @@ public class IntegracionConectorService : IIntegracionConectorService
         var entity = await _repository.GetByIdAsync(id);
         if (entity is null) return false;
 
-        entity.RutaEndpoint = dto.RutaEndpoint;
-        entity.ColaRabbitMQDestino = dto.ColaRabbitMQDestino;
+        var integracion = entity.Integracion
+            ?? await _integracionRepository.GetByIdAsync(entity.IntegracionId)
+            ?? throw new NotFoundException("La integración asociada no existe.");
+
+        var (ruta, cola, esGenerica, unoEId) = await ValidarYNormalizarAsync(
+            integracion, dto.RutaEndpoint, dto.ColaRabbitMQDestino, dto.EsConsultaGenerica, dto.UnoEConsultaConfigId);
+
+        entity.RutaEndpoint = ruta;
+        entity.ColaRabbitMQDestino = cola;
+        entity.EsConsultaGenerica = esGenerica;
+        entity.UnoEConsultaConfigId = unoEId;
         entity.UpdatedAt = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync();
@@ -97,6 +113,59 @@ public class IntegracionConectorService : IIntegracionConectorService
         return true;
     }
 
+    /// <summary>
+    /// Reglas según la integración padre:
+    ///  - EsAsincrono = true  -> la cola de RabbitMQ es obligatoria.
+    ///  - EsAsincrono = false -> la ruta del endpoint es obligatoria.
+    ///  - EsConsultaGenerica solo aplica a integraciones de Tipo = Consulta y exige
+    ///    asociar una consulta UnoE existente y activa.
+    /// Devuelve los valores normalizados a persistir.
+    /// Nota: la columna RutaEndpoint sigue siendo NOT NULL en la BD, por lo que una ruta
+    /// ausente se guarda como cadena vacía (ver README / pendiente de migración).
+    /// </summary>
+    private async Task<(string Ruta, string? Cola, bool EsGenerica, long? UnoEId)> ValidarYNormalizarAsync(
+        IntgIntegracion integracion, string? ruta, string? cola, bool esConsultaGenerica, long? unoEConsultaConfigId)
+    {
+        ruta = string.IsNullOrWhiteSpace(ruta) ? null : ruta.Trim();
+        cola = string.IsNullOrWhiteSpace(cola) ? null : cola.Trim();
+
+        if (integracion.EsAsincrono && cola is null)
+        {
+            throw new BadRequestException("La integración es asíncrona: la cola de RabbitMQ destino es obligatoria.");
+        }
+
+        if (!integracion.EsAsincrono && ruta is null)
+        {
+            throw new BadRequestException("La integración es síncrona: la ruta del endpoint es obligatoria.");
+        }
+
+        if (esConsultaGenerica && integracion.Tipo != TipoIntegracion.Consulta)
+        {
+            throw new BadRequestException("Solo las integraciones de tipo Consulta pueden ejecutarse como consulta genérica.");
+        }
+
+        if (!esConsultaGenerica)
+        {
+            // Sin consulta genérica no tiene sentido conservar una consulta UnoE asociada.
+            return (ruta ?? string.Empty, cola, false, null);
+        }
+
+        if (unoEConsultaConfigId is null)
+        {
+            throw new BadRequestException("Para una consulta genérica debes asociar una consulta UnoE.");
+        }
+
+        var consulta = await _unoEConsultaRepository.GetByIdAsync(unoEConsultaConfigId.Value)
+            ?? throw new NotFoundException("La consulta UnoE indicada no existe.");
+
+        if (!consulta.Estado)
+        {
+            throw new BadRequestException("La consulta UnoE indicada está inactiva.");
+        }
+
+        return (ruta ?? string.Empty, cola, true, unoEConsultaConfigId);
+    }
+
     private static IntegracionConectorDto ToDto(IntgIntegracionConector entity) => new()
     {
         Id = entity.Id,
@@ -107,6 +176,8 @@ public class IntegracionConectorService : IIntegracionConectorService
         NombreConector = entity.Conector?.Nombre,
         RutaEndpoint = entity.RutaEndpoint,
         ColaRabbitMQDestino = entity.ColaRabbitMQDestino,
+        EsConsultaGenerica = entity.EsConsultaGenerica,
+        UnoEConsultaConfigId = entity.UnoEConsultaConfigId,
         Estado = entity.Estado
     };
 }
