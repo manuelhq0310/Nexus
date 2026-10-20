@@ -14,7 +14,6 @@ public class IntgIntegracionConectorConfiguration : IEntityTypeConfiguration<Int
         builder.Property(ic => ic.Id).UseIdentityByDefaultColumn();
 
         builder.Property(ic => ic.RutaEndpoint)
-            .IsRequired()
             .HasMaxLength(250);
 
         builder.Property(ic => ic.ColaRabbitMQDestino)

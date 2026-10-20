@@ -416,7 +416,6 @@ namespace Nexus.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("RutaEndpoint")
-                        .IsRequired()
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)");
 
