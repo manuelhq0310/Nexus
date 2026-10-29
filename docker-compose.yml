@@ -11,6 +11,26 @@ services:
       - Jwt__SecretKey=kUb0z1CdcrsnHixRBsNbqS2Df6L5ayJH
       - Jwt__Issuer=Nexus.Api
       - Jwt__Audience=Nexus.Clients
+      # --- Ruta 1: Auth Token ---
+      - ReverseProxy__Routes__nexus-auth-token-route__ClusterId=nexus-api-cluster
+      - ReverseProxy__Routes__nexus-auth-token-route__Match__Path=/api/v1/auth/token
+      - ReverseProxy__Routes__nexus-auth-token-route__Transforms__0__PathSet=/api/auth/obtenerTokenAplicacion
+
+      # --- Ruta 2: Onboarding ---
+      - ReverseProxy__Routes__nexus-public-onboarding-route__ClusterId=nexus-api-cluster
+      - ReverseProxy__Routes__nexus-public-onboarding-route__Match__Path=/api/v1/onboarding/obtener-credenciales
+      - ReverseProxy__Routes__nexus-public-onboarding-route__Transforms__0__PathSet=/api/v1/aplicaciones/onboarding/obtener-credenciales
+
+      # --- Ruta 3: Ejecutar Integracion ---
+      - ReverseProxy__Routes__nexus-ejecutar-integracion-route__ClusterId=nexus-api-cluster
+      - ReverseProxy__Routes__nexus-ejecutar-integracion-route__AuthorizationPolicy=AuthenticatedM2M
+      - ReverseProxy__Routes__nexus-ejecutar-integracion-route__Match__Path=/api/v1/integraciones/ejecutar
+      - ReverseProxy__Routes__nexus-ejecutar-integracion-route__Transforms__0__PathSet=/api/v1/IntegracionRouter/ejecutar
+
+      # --- Ruta 4: Ejecutar Consulta
+      - ReverseProxy__Routes__nexus-ejecutar-consulta__ClusterId=nexus-api-cluster
+      - ReverseProxy__Routes__nexus-ejecutar-consulta__Match__Path=/api/v1/integraciones/ejecutar-consulta
+      - ReverseProxy__Routes__nexus-ejecutar-consulta__Transforms__0__PathSet=/api/v1/PayanaIntegracion/ejecutarConsulta
     depends_on:
       - nexus.api
 
