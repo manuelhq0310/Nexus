@@ -1,4 +1,4 @@
-﻿namespace Nexus.Application.DTOs.Payana
+﻿namespace Nexus.Application.DTOs.IntegracionRouter
 {
 	public record EjecutarConsultaResponse(
 		int Codigo,

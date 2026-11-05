@@ -3,7 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
+using Nexus.Application.Interfaces.Services.V2;
 using Nexus.Application.Services;
+using Nexus.Application.Services.V2;
 using Nexus.Domain.Interfaces;
 using Nexus.Infrastructure.Messaging;
 using Nexus.Infrastructure.Persistence;
@@ -61,10 +63,10 @@ public static class DependencyInjection
         services.AddScoped<IAplicacionEmpresaService, AplicacionEmpresaService>();
         services.AddScoped<IAplicacionConectorService, AplicacionConectorService>();
         services.AddScoped<IEmpresaConectorService, EmpresaConectorService>();        
-        services.AddScoped<IIntegracionRouterService, IntegracionRouterService>();
+        services.AddScoped<Application.Interfaces.Services.IIntegracionRouterService, Application.Services.IntegracionRouterService>();
         services.AddScoped<IMessageBrokerPublisher, RabbitMqMessageBrokerPublisher>();
         services.AddScoped<IUnoEConsultaService, UnoEConsultaService>();
-		services.AddScoped<IPayanaIntegracionService, PayanaIntegracionService>();
+		services.AddScoped<Application.Interfaces.Services.V2.IIntegracionRouterService, Application.Services.V2.IntegracionRouterService>();
 
 		// Registro del HostedService/Consumer
 		services.AddHostedService<UnoERespuestasConsumer>();

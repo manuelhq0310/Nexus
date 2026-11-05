@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Nexus.Application.DTOs.IntegracionRouter;
 using Nexus.Application.Interfaces.Repositories;
 using Nexus.Application.Interfaces.Services;
@@ -144,14 +145,21 @@ namespace Nexus.Application.Services
 					payload = request.Payload;
 				}
 
-				return await EnviarAEndpointHttpAsync(urlEndpoint, payload);
+				return await EnviarAEndpointHttpAsync(urlEndpoint, payload, request.queryParams);
 			}
 		}
 
 		private async Task<EjecutarIntegracionResponse> EnviarAEndpointHttpAsync(
 			string urlEndpoint,
-			object payload)
+			object payload,
+			IDictionary<string, string>? queryParams = null)
 		{
+			// Si se enviaron parámetros opcionales, los agregamos al query string de la URL
+			if (queryParams != null && queryParams.Count > 0)
+			{
+				urlEndpoint = QueryHelpers.AddQueryString(urlEndpoint, queryParams!);
+			}
+
 			_logger.LogInformation("Enviando petición HTTP POST a Endpoint: {UrlEndpoint}", urlEndpoint);
 
 			var client = _httpClientFactory.CreateClient("ConectoresClient");
@@ -172,18 +180,28 @@ namespace Nexus.Application.Services
 
 			var responseBody = await response.Content.ReadAsStringAsync();
 
-			if (response.IsSuccessStatusCode)
+			try
 			{
-				_logger.LogInformation("Petición HTTP exitosa hacia {UrlEndpoint}. StatusCode: {StatusCode}", urlEndpoint, response.StatusCode);
-
 				var dataResult = JsonSerializer.Deserialize<object>(responseBody);
-				return new EjecutarIntegracionResponse(true, "Integración ejecutada en el conector con éxito.", dataResult, Guid.NewGuid().ToString());
-			}
 
-			_logger.LogWarning("El conector respondió con error HTTP {StatusCode} en {UrlEndpoint}. Respuesta: {ResponseBody}",
+				if (response.IsSuccessStatusCode)
+				{
+					_logger.LogInformation("Petición HTTP exitosa hacia {UrlEndpoint}. StatusCode: {StatusCode}", urlEndpoint, response.StatusCode);
+					return new EjecutarIntegracionResponse(true, "Integración ejecutada en el conector con éxito.", dataResult, Guid.NewGuid().ToString());
+				}
+
+				_logger.LogWarning("El conector respondió con error HTTP {StatusCode} en {UrlEndpoint}. Respuesta: {ResponseBody}",
+				response.StatusCode, urlEndpoint, dataResult);
+
+				return new EjecutarIntegracionResponse(false, $"Error devuelto por el conector.", dataResult, null);
+			}
+			catch
+			{
+				_logger.LogWarning("El conector respondió con error HTTP {StatusCode} en {UrlEndpoint}. Respuesta: {ResponseBody}",
 				response.StatusCode, urlEndpoint, responseBody);
 
-			return new EjecutarIntegracionResponse(false, $"Error devuelto por el conector.", responseBody, null);
+				return new EjecutarIntegracionResponse(false, $"Error devuelto por el conector.", responseBody, null);
+			}
 		}
 
 		private async Task<EjecutarIntegracionResponse> PublicarAColaAsync(
